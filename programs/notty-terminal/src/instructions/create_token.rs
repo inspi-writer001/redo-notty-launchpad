@@ -35,7 +35,7 @@ pub struct CreateToken<'info> {
         mint::authority = token_state,
         mint::decimals = 9,
         mint::token_program = token_program,
-        mint::freeze_authority = token_program,
+        mint::freeze_authority = token_state,
         payer = creator
     )]
     pub creator_mint: InterfaceAccount<'info, Mint>,
@@ -81,7 +81,8 @@ pub struct CreateToken<'info> {
         bump,
         seeds::program = token_metadata_program.key()
     )]
-    pub metadata_account: Account<'info, MetadataAccount>,
+    /// CHECK MEtaplex cre4ates this account
+    pub metadata_account: UncheckedAccount<'info>,
 
     #[account(
         mut,
@@ -144,10 +145,17 @@ impl<'info> CreateToken<'info> {
             uses: None,
         };
 
+        let signer_seeds: &[&[&[u8]]] = &[&[
+            b"token_state",
+            &self.creator_mint.key().to_bytes(),
+            &[bumps.token_state],
+        ]];
+
         create_metadata_accounts_v3(
-            CpiContext::new(
+            CpiContext::new_with_signer(
                 self.token_metadata_program.to_account_info(),
                 create_metadata_accounts,
+                signer_seeds,
             ),
             datav2,
             false,
@@ -186,17 +194,10 @@ impl<'info> CreateToken<'info> {
             amount_to_transfer,
         )?;
 
-        // mint entire supply to vault
-        let signer_seeds: &[&[&[u8]]] = &[&[
-            b"token_state",
-            &self.creator_mint.key().to_bytes(),
-            &[self.token_state.bump],
-        ]];
-
         let mint_to_accounts = MintTo {
             authority: self.token_state.to_account_info(),
             mint: self.creator_mint.to_account_info(),
-            to: self.token_state.to_account_info(),
+            to: self.token_vault.to_account_info(),
         };
 
         let cpi_context = CpiContext::new_with_signer(

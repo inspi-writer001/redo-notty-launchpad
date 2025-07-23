@@ -18,9 +18,9 @@ describe("notty-terminal", () => {
     // Add your test here.
     const tx = await program.methods
       .initialize({
-        endMcap: new anchor.BN(20_000),
-        listingFeeLamport: new anchor.BN(500_000_00),
-        slope: new anchor.BN(1_000_000_0),
+        endMcap: new anchor.BN(20_000_000_000_00),
+        listingFeeLamport: new anchor.BN(50_000_000),
+        slope: new anchor.BN(10_000_000),
         startMcap: new anchor.BN(1000),
         totalSupply: new anchor.BN(10_000_000)
       })
@@ -33,7 +33,9 @@ describe("notty-terminal", () => {
   });
 
   it("should create token", async () => {
-    let tokenMint = new anchor.web3.Keypair();
+    let tokenMint = anchor.web3.Keypair.generate();
+
+    console.log(tokenMint.publicKey.toBase58());
     // Add your test here.
     const tx = await program.methods
       .createToken({
