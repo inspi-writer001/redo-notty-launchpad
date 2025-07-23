@@ -67,7 +67,7 @@ pub struct CreateToken<'info> {
     #[account(
         mut,
         seeds = [b"global_state"],
-        bump =global_state.bump
+        bump = global_state.bump
     )]
     pub global_state: Account<'info, GlobalState>,
 
