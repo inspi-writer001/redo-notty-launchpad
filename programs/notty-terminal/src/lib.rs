@@ -24,4 +24,9 @@ pub mod notty_terminal {
         ctx.accounts.handle_create_token(args, &ctx.bumps)?;
         Ok(())
     }
+
+    pub fn purchase_token(ctx: Context<PurchaseToken>, args: PurchaseTokenArgs) -> Result<()> {
+        ctx.accounts.handle_purchase(args)?;
+        Ok(())
+    }
 }

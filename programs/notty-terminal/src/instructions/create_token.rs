@@ -213,7 +213,7 @@ impl<'info> CreateToken<'info> {
             bump: bumps.token_state,
             migrated: false,
             mint: self.creator_mint.key(),
-            price_per_token: 1_000_000, // 0.001 sol per token
+            initial_price_per_token: 1_000_000, // 0.001 sol per token
             sol_raised: amount_to_transfer,
             tokens_sold: 0,
             total_supply: self.global_state.total_supply,

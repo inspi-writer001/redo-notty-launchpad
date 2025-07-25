@@ -2,10 +2,21 @@ import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { NottyTerminal } from "../target/types/notty_terminal";
 import admin_file from "./wallets/admin-wallet.json";
-import { TOKEN_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/utils/token";
+import user_1_file from "./wallets/user-1-wallet.json";
+import {
+  associatedAddress,
+  TOKEN_PROGRAM_ID
+} from "@coral-xyz/anchor/dist/cjs/utils/token";
+import {
+  getAssociatedTokenAddressSync,
+  getOrCreateAssociatedTokenAccount
+} from "@solana/spl-token";
 
 let admin_wallet = anchor.web3.Keypair.fromSecretKey(
   new Uint8Array(admin_file)
+);
+let user_1_wallet = anchor.web3.Keypair.fromSecretKey(
+  new Uint8Array(user_1_file)
 );
 
 describe("notty-terminal", () => {
@@ -22,7 +33,7 @@ describe("notty-terminal", () => {
         listingFeeLamport: new anchor.BN(50_000_000),
         slope: new anchor.BN(10_000_000),
         startMcap: new anchor.BN(1000),
-        totalSupply: new anchor.BN(10_000_000)
+        totalSupply: new anchor.BN(10_000_000_000_000)
       })
       .accounts({
         admin: admin_wallet.publicKey
@@ -32,7 +43,7 @@ describe("notty-terminal", () => {
     console.log("Your transaction signature", tx);
   });
 
-  it("should create token", async () => {
+  it("should create token and purchase it", async () => {
     let tokenMint = anchor.web3.Keypair.generate();
 
     console.log(tokenMint.publicKey.toBase58());
@@ -51,5 +62,34 @@ describe("notty-terminal", () => {
       })
       .rpc();
     console.log("Your transaction signature", tx);
+
+    let [token_state, _] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("token_state"), tokenMint.publicKey.toBytes()],
+      program.programId
+    );
+
+    let token_vault = await getOrCreateAssociatedTokenAccount(
+      anchor.getProvider().connection,
+      user_1_wallet,
+      tokenMint.publicKey,
+      token_state,
+      true
+    );
+
+    const tx1 = await program.methods
+      .purchaseToken({
+        amount: new anchor.BN(10_000_000_000),
+        minAmountOut: new anchor.BN(10_000)
+      })
+      .signers([user_1_wallet])
+      .accounts({
+        buyer: user_1_wallet.publicKey,
+        creatorMint: tokenMint.publicKey,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        tokenVault: token_vault.address
+      })
+      .rpc();
+
+    console.log("Your transaction signature 2", tx1);
   });
 });
