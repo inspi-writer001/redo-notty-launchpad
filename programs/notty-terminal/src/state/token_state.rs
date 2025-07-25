@@ -11,4 +11,6 @@ pub struct TokenState {
     pub total_supply: u64,
     pub tokens_sold: u64,
     pub sol_raised: u64,
+    pub start_mcap: u64,
+    pub end_mcap: u64,
 }

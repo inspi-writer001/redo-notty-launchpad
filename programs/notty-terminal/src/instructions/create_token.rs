@@ -206,27 +206,37 @@ impl<'info> CreateToken<'info> {
             signer_seeds,
         );
 
-        mint_to(cpi_context, self.global_state.total_supply as u64)?;
+        mint_to(cpi_context, args.total_supply)?;
+
+        let initial_price_per_token = args
+            .start_mcap
+            .checked_div(args.total_supply)
+            .ok_or(NottyTerminalError::NumericalOverflow)?;
 
         // set Token state
         self.token_state.set_inner(TokenState {
             bump: bumps.token_state,
             migrated: false,
             mint: self.creator_mint.key(),
-            initial_price_per_token: 1_000_000, // 0.001 sol per token
+            initial_price_per_token,
             sol_raised: amount_to_transfer,
             tokens_sold: 0,
-            total_supply: self.global_state.total_supply,
+            total_supply: args.total_supply,
             sol_vault_bump: bumps.sol_vault,
+            start_mcap: args.start_mcap,
+            end_mcap: args.end_mcap,
         });
 
         Ok(())
     }
 }
 
-#[derive(AnchorDeserialize, AnchorSerialize, Clone, PartialEq)]
+#[derive(AnchorDeserialize, AnchorSerialize, Clone)]
 pub struct CreateTokenArgs {
     pub name: String,
     pub token_symbol: String,
     pub token_uri: String,
+    pub total_supply: u64, // Token-specific total supply
+    pub start_mcap: u64,   // Starting market cap in lamports
+    pub end_mcap: u64,     // Ending market cap in lamports
 }

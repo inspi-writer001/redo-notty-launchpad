@@ -11,6 +11,7 @@ import {
   getAssociatedTokenAddressSync,
   getOrCreateAssociatedTokenAccount
 } from "@solana/spl-token";
+import { publicKey } from "@coral-xyz/anchor/dist/cjs/utils";
 
 let admin_wallet = anchor.web3.Keypair.fromSecretKey(
   new Uint8Array(admin_file)
@@ -29,11 +30,8 @@ describe("notty-terminal", () => {
     // Add your test here.
     const tx = await program.methods
       .initialize({
-        endMcap: new anchor.BN(20_000_000_000_00),
-        listingFeeLamport: new anchor.BN(50_000_000),
-        slope: new anchor.BN(10_000_000),
-        startMcap: new anchor.BN(1000),
-        totalSupply: new anchor.BN(10_000_000_000_000)
+        listingFeeLamport: new anchor.BN(50_000_000), // 0.001 SOL listing fee
+        slope: new anchor.BN(1)
       })
       .accounts({
         admin: admin_wallet.publicKey
@@ -44,52 +42,65 @@ describe("notty-terminal", () => {
   });
 
   it("should create token and purchase it", async () => {
-    let tokenMint = anchor.web3.Keypair.generate();
+    try {
+      let tokenMint = anchor.web3.Keypair.generate();
+      // let tokenMint = {
+      //   publicKey: new anchor.web3.PublicKey(
+      //     "8it4imaJgw2bt32BsNni74FqS3fES8u4R1H9bXLjovrm"
+      //   )
+      // };
 
-    console.log(tokenMint.publicKey.toBase58());
-    // Add your test here.
-    const tx = await program.methods
-      .createToken({
-        name: "Shinobi Jenks",
-        tokenSymbol: "SJK",
-        tokenUri: "https://avatars.githubusercontent.com/u/94226358?v=4"
-      })
-      .signers([admin_wallet, tokenMint])
-      .accounts({
-        creator: admin_wallet.publicKey,
-        creatorMint: tokenMint.publicKey,
-        tokenProgram: TOKEN_PROGRAM_ID
-      })
-      .rpc();
-    console.log("Your transaction signature", tx);
+      console.log(tokenMint.publicKey.toBase58());
+      // Add your test here.
+      const tx = await program.methods
+        .createToken({
+          name: "Shinobi Jenks",
+          tokenSymbol: "SJK",
+          tokenUri: "https://avatars.githubusercontent.com/u/94226358?v=4",
+          endMcap: new anchor.BN(100_000_000), // 0.1 SOL end market cap
+          startMcap: new anchor.BN(100_000), // 0.001 SOL start market cap
+          totalSupply: new anchor.BN(1_000_000_000_000)
+        })
+        .signers([admin_wallet, tokenMint])
+        .accounts({
+          creator: admin_wallet.publicKey,
+          creatorMint: tokenMint.publicKey,
+          tokenProgram: TOKEN_PROGRAM_ID
+        })
+        .rpc();
+      console.log("Your transaction signature", tx);
 
-    let [token_state, _] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("token_state"), tokenMint.publicKey.toBytes()],
-      program.programId
-    );
+      let [token_state, _] = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from("token_state"), tokenMint.publicKey.toBytes()],
+        program.programId
+      );
 
-    let token_vault = await getOrCreateAssociatedTokenAccount(
-      anchor.getProvider().connection,
-      user_1_wallet,
-      tokenMint.publicKey,
-      token_state,
-      true
-    );
+      let token_vault = await getOrCreateAssociatedTokenAccount(
+        anchor.getProvider().connection,
+        user_1_wallet,
+        tokenMint.publicKey,
+        token_state,
+        true
+      );
 
-    const tx1 = await program.methods
-      .purchaseToken({
-        amount: new anchor.BN(10_000_000_000),
-        minAmountOut: new anchor.BN(10_000)
-      })
-      .signers([user_1_wallet])
-      .accounts({
-        buyer: user_1_wallet.publicKey,
-        creatorMint: tokenMint.publicKey,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        tokenVault: token_vault.address
-      })
-      .rpc();
+      const tx1 = await program.methods
+        .purchaseToken({
+          amount: new anchor.BN(5_000),
+          minAmountOut: new anchor.BN(0)
+        })
+        .signers([user_1_wallet])
+        .accounts({
+          buyer: user_1_wallet.publicKey,
+          creatorMint: tokenMint.publicKey,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          tokenVault: token_vault.address
+        })
+        .rpc();
 
-    console.log("Your transaction signature 2", tx1);
+      console.log("Your transaction signature 2", tx1);
+    } catch (error) {
+      console.log(error);
+      throw error.logs;
+    }
   });
 });

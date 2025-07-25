@@ -7,7 +7,10 @@ use anchor_spl::{
     token_interface::{self, Mint, TokenAccount, TokenInterface},
 };
 
-use crate::{error::NottyTerminalError, GlobalState, TokenState};
+use crate::{
+    error::{NottyTerminalError, PriceCalculationError},
+    GlobalState, TokenState,
+};
 
 #[derive(Accounts)]
 pub struct PurchaseToken<'info> {
@@ -67,7 +70,7 @@ pub struct PurchaseToken<'info> {
 impl<'info> PurchaseToken<'info> {
     pub fn handle_purchase(&mut self, args: PurchaseTokenArgs) -> Result<()> {
         let amount = args.amount;
-        let cost_lamports = self.get_current_token_price(amount);
+        let cost_lamports = self.get_current_token_price(amount)?;
 
         // (2) Check slippage
         require!(
@@ -124,73 +127,63 @@ impl<'info> PurchaseToken<'info> {
         Ok(())
     }
 
-    pub fn calculate_current_market_cap(&self) -> u64 {
+    pub fn calculate_current_market_cap(&self) -> Result<u64> {
         let current_price = self.get_current_token_price(1); // base_price + slope * tokens_sold
-        let cap_lamports = current_price
+        let cap_lamports = current_price?
             .checked_mul(self.token_state.total_supply)
             .ok_or_else(|| NottyTerminalError::NumericalOverflow)
             .unwrap();
-        cap_lamports
+        Ok(cap_lamports)
     }
 
-    pub fn get_current_token_price(&self, amount: u64) -> u64 {
+    pub fn get_current_token_price(&self, amount: u64) -> Result<u64> {
         let base_price = self.token_state.initial_price_per_token;
         let slope = self.global_state.slope;
-        let tokens_sold = self.token_state.tokens_sold;
+        let tokens_sold = self.token_state.tokens_sold; // This is S₀ in your formula
         let n = amount;
 
-        let current_supply = self
-            .token_state
-            .total_supply
-            .checked_sub(tokens_sold)
-            .ok_or_else(|| NottyTerminalError::NumericalOverflow);
-
-        // cost for n tokens = base_price * n + slope * (current_supply * n + n² / 2)
-        // cost for n tokens = (    first   ) + slope * ((     third      ) + (second))
-        // cost for n tokens =        first  +   slope * (     third + second )
+        // cost for n tokens = base_price * n + slope * (tokens_sold * n + n² / 2)
+        // where tokens_sold is the current position on the bonding curve
 
         // (1) base_price * n
         let first = base_price
             .checked_mul(n)
-            .ok_or_else(|| NottyTerminalError::NumericalOverflow);
+            .ok_or(NottyTerminalError::NumericalOverflow)?;
 
         // (2) n² / 2
         let n_squared = n
             .checked_mul(n)
-            .ok_or_else(|| NottyTerminalError::NumericalOverflow);
+            .ok_or(NottyTerminalError::NumericalOverflow)?;
         let second = n_squared
-            .unwrap()
             .checked_div(2)
-            .ok_or_else(|| NottyTerminalError::NumericalOverflow);
+            .ok_or(NottyTerminalError::NumericalOverflow)?;
 
-        // (3) current_supply * n
-        let third = current_supply
-            .unwrap()
+        // (3) tokens_sold * n (NOT current_supply!)
+        let third = tokens_sold
             .checked_mul(n)
-            .ok_or_else(|| NottyTerminalError::NumericalOverflow);
+            .ok_or(NottyTerminalError::NumericalOverflow)?;
 
         // (4) third + second
         let inner = third
-            .unwrap()
-            .checked_add(second.unwrap())
-            .ok_or_else(|| NottyTerminalError::NumericalOverflow);
+            .checked_add(second)
+            .ok_or(NottyTerminalError::NumericalOverflow)?;
 
-        // (5) slope * (third + second)
+        // (5) slope * (tokens_sold * n + n²/2)
         let slope_part = slope
-            .checked_mul(inner.unwrap())
-            .ok_or_else(|| NottyTerminalError::NumericalOverflow);
+            .checked_mul(inner)
+            .ok_or(NottyTerminalError::NumericalOverflow)?;
 
         // (6) first + slope_part
-        let total_cost = first
-            .unwrap()
-            .checked_add(slope_part.unwrap())
-            .ok_or_else(|| NottyTerminalError::NumericalOverflow)
-            .unwrap();
-        total_cost
+        let total_cost_in_lamports = first
+            .checked_add(slope_part)
+            .ok_or(NottyTerminalError::NumericalOverflow)?;
+
+        // Return cost directly in lamports - NO multiplication by 1000!
+        Ok(total_cost_in_lamports)
     }
 }
 
-#[derive(AnchorDeserialize, AnchorSerialize, Clone, PartialEq)]
+#[derive(AnchorDeserialize, AnchorSerialize, Clone)]
 pub struct PurchaseTokenArgs {
     pub amount: u64,
     pub min_amount_out: u64,
