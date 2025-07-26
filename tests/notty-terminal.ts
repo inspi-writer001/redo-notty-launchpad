@@ -26,53 +26,61 @@ describe("notty-terminal", () => {
 
   const program = anchor.workspace.nottyTerminal as Program<NottyTerminal>;
 
-  it("Is initialized!", async () => {
-    // Add your test here.
-    const tx = await program.methods
-      .initialize({
-        listingFeeLamport: new anchor.BN(50_000_000),
-        slope: new anchor.BN(1)
-      })
-      .accounts({
-        admin: admin_wallet.publicKey
-      })
-      .signers([admin_wallet])
-      .rpc();
-    console.log("Your transaction signature", tx);
-  });
+  // it("Is initialized!", async () => {
+  //   // Add your test here.
+  //   const tx = await program.methods
+  //     .initialize({
+  //       listingFeeLamport: new anchor.BN(50_000_000),
+  //       slope: new anchor.BN(1)
+  //     })
+  //     .accounts({
+  //       admin: admin_wallet.publicKey
+  //     })
+  //     .signers([admin_wallet])
+  //     .rpc();
+  //   console.log("Your transaction signature", tx);
+  // });
 
   it("should create token and purchase it", async () => {
     try {
-      let tokenMint = anchor.web3.Keypair.generate();
-      // let tokenMint = {
-      //   publicKey: new anchor.web3.PublicKey(
-      //     "CBNjiFBXSKZMkKDXeEFnHymwHyqiDqYkvaR8z6BTMbHy"
-      //   )
-      // };
+      // let tokenMint = anchor.web3.Keypair.generate();
+      let tokenMint = {
+        publicKey: new anchor.web3.PublicKey(
+          "2Y4kJ6DmfQu3ePbfgNtQaFpF1ZYX85FmqvZ156LMpLmb"
+        )
+      };
 
       console.log(tokenMint.publicKey.toBase58());
       // Add your test here.
-      const tx = await program.methods
-        .createToken({
-          name: "Shinobi Jenks",
-          tokenSymbol: "SJK",
-          tokenUri: "https://avatars.githubusercontent.com/u/94226358?v=4",
-          endMcap: new anchor.BN(460_000_000_000), // 460 SOL (matches your metrics)
-          startMcap: new anchor.BN(25_000_000_000), // 25 SOL (matches your metrics)
-          totalSupply: new anchor.BN(1_000_000_000) // 1B tokens (matches your metrics)
-        })
-        .signers([user_1_wallet, tokenMint])
-        .accounts({
-          creator: user_1_wallet.publicKey,
-          creatorMint: tokenMint.publicKey,
-          tokenProgram: TOKEN_PROGRAM_ID
-        })
-        .rpc();
-      console.log("Your transaction signature", tx);
+      // const tx = await program.methods
+      //   .createToken({
+      //     name: "Shinobi Jenks",
+      //     tokenSymbol: "SJK",
+      //     tokenUri: "https://avatars.githubusercontent.com/u/94226358?v=4",
+      //     endMcap: new anchor.BN(460_000_000_000), // 460 SOL (matches your metrics)
+      //     startMcap: new anchor.BN(25_000_000_000), // 25 SOL (matches your metrics)
+      //     totalSupply: new anchor.BN(1_000_000_000) // 1B tokens (matches your metrics)
+      //   })
+      //   .signers([user_1_wallet, tokenMint])
+      //   .accounts({
+      //     creator: user_1_wallet.publicKey,
+      //     creatorMint: tokenMint.publicKey,
+      //     tokenProgram: TOKEN_PROGRAM_ID
+      //   })
+      //   .rpc();
+      // console.log("Your transaction signature", tx);
+
+      console.log("=== BEFORE PURCHASE ===");
 
       let [token_state, _] = anchor.web3.PublicKey.findProgramAddressSync(
         [Buffer.from("token_state"), tokenMint.publicKey.toBytes()],
         program.programId
+      );
+
+      const beforeState = await program.account.tokenState.fetch(token_state);
+      console.log(
+        "SOL Raised before:",
+        Number(beforeState.solRaised) / 1_000_000_000
       );
 
       let token_vault = await getOrCreateAssociatedTokenAccount(
@@ -85,7 +93,7 @@ describe("notty-terminal", () => {
 
       const tx1 = await program.methods
         .purchaseToken({
-          amount: new anchor.BN(1_000_000_000),
+          amount: new anchor.BN(1_000_000_000_000),
           minAmountOut: new anchor.BN(0)
         })
         .signers([user_1_wallet])
@@ -98,112 +106,62 @@ describe("notty-terminal", () => {
         .rpc();
 
       console.log("Your transaction signature 2", tx1);
+      console.log("=== AFTER PURCHASE ===");
+      const afterState = await program.account.tokenState.fetch(token_state);
+      console.log(
+        "SOL Raised after:",
+        Number(afterState.solRaised) / 1_000_000_000
+      );
+      console.log(
+        "Tokens Sold:",
+        Number(afterState.tokensSold) / 1_000_000_000
+      );
     } catch (error) {
       console.log(error);
       throw error.logs;
     }
   });
+
+  // it("should fetch token state only", async () => {
+  //   const tokenMintAddress = "CBNjiFBXSKZMkKDXeEFnHymwHyqiDqYkvaR8z6BTMbHy";
+
+  //   let [token_state, _] = anchor.web3.PublicKey.findProgramAddressSync(
+  //     [
+  //       Buffer.from("token_state"),
+  //       new anchor.web3.PublicKey(tokenMintAddress).toBytes()
+  //     ],
+  //     program.programId
+  //   );
+
+  //   try {
+  //     const tokenStateAccount = await program.account.tokenState.fetch(
+  //       token_state
+  //     );
+
+  //     console.log("=== QUICK TOKEN STATE CHECK ===");
+  //     console.log("✅ Token State exists!");
+  //     console.log(
+  //       "📊 Tokens Sold:",
+  //       Number(tokenStateAccount.tokensSold) / 1_000_000_000,
+  //       "tokens"
+  //     );
+  //     console.log(
+  //       "💰 SOL Raised:",
+  //       Number(tokenStateAccount.solRaised) / 1_000_000_000,
+  //       "SOL"
+  //     );
+  //     console.log(
+  //       "💎 Total Supply:",
+  //       Number(tokenStateAccount.totalSupply).toLocaleString(),
+  //       "tokens"
+  //     );
+  //     console.log(
+  //       "🏷️  Initial Price:",
+  //       tokenStateAccount.initialPricePerToken.toString(),
+  //       "lamports per token"
+  //     );
+  //   } catch (error) {
+  //     console.log("❌ Token State not found or error:", error.message);
+  //   }
+  // });
 });
-
-///
-//  try {
-//    const tokenStateAccount = await program.account.tokenState.fetch(
-//      token_state
-//    );
-
-//    console.log("\n=== TOKEN STATE ACCOUNT DATA ===");
-//    console.log("Bump:", tokenStateAccount.bump);
-//    console.log("Migrated:", tokenStateAccount.migrated);
-//    console.log("Mint:", tokenStateAccount.mint.toBase58());
-//    console.log(
-//      "Initial Price Per Token:",
-//      tokenStateAccount.initialPricePerToken.toString(),
-//      "lamports"
-//    );
-//    console.log(
-//      "SOL Raised:",
-//      tokenStateAccount.solRaised.toString(),
-//      "lamports"
-//    );
-//    console.log(
-//      "Tokens Sold:",
-//      tokenStateAccount.tokensSold.toString(),
-//      "base units"
-//    );
-//    console.log(
-//      "Total Supply:",
-//      tokenStateAccount.totalSupply.toString(),
-//      "tokens"
-//    );
-//    console.log("SOL Vault Bump:", tokenStateAccount.solVaultBump);
-//    console.log(
-//      "Start Market Cap:",
-//      tokenStateAccount.startMcap.toString(),
-//      "lamports"
-//    );
-//    console.log(
-//      "End Market Cap:",
-//      tokenStateAccount.endMcap.toString(),
-//      "lamports"
-//    );
-
-//    // Convert to human-readable format
-//    console.log("\n=== HUMAN-READABLE VALUES ===");
-//    console.log(
-//      "Initial Price Per Token:",
-//      Number(tokenStateAccount.initialPricePerToken) / 1_000_000_000,
-//      "SOL"
-//    );
-//    console.log(
-//      "SOL Raised:",
-//      Number(tokenStateAccount.solRaised) / 1_000_000_000,
-//      "SOL"
-//    );
-//    console.log(
-//      "Tokens Sold:",
-//      Number(tokenStateAccount.tokensSold) / 1_000_000_000,
-//      "tokens"
-//    );
-//    console.log(
-//      "Total Supply:",
-//      Number(tokenStateAccount.totalSupply).toLocaleString(),
-//      "tokens"
-//    );
-//    console.log(
-//      "Start Market Cap:",
-//      Number(tokenStateAccount.startMcap) / 1_000_000_000,
-//      "SOL"
-//    );
-//    console.log(
-//      "End Market Cap:",
-//      Number(tokenStateAccount.endMcap) / 1_000_000_000,
-//      "SOL"
-//    );
-
-//    // Calculate current metrics
-//    const currentPrice = Number(tokenStateAccount.initialPricePerToken); // This is base price
-//    const currentMarketCap =
-//      currentPrice * Number(tokenStateAccount.totalSupply);
-//    const percentageSold =
-//      (Number(tokenStateAccount.tokensSold) /
-//        Number(tokenStateAccount.totalSupply) /
-//        1_000_000_000) *
-//      100;
-
-//    console.log("\n=== CALCULATED METRICS ===");
-//    console.log("Current Market Cap:", currentMarketCap / 1_000_000_000, "SOL");
-//    console.log("Percentage of Supply Sold:", percentageSold.toFixed(4), "%");
-//    console.log(
-//      "Remaining Tokens:",
-//      (Number(tokenStateAccount.totalSupply) * 1_000_000_000 -
-//        Number(tokenStateAccount.tokensSold)) /
-//        1_000_000_000,
-//      "tokens"
-//    );
-//  } catch (fetchError) {
-//    console.log("❌ Failed to fetch token state:", fetchError.message);
-//    console.log(
-//      "This might mean the token hasn't been created yet, or the PDA address is incorrect."
-//    );
-//    return;
-//  }

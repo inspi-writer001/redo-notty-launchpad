@@ -41,6 +41,7 @@ pub struct PurchaseToken<'info> {
     pub token_vault: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
+        mut,
         seeds = [
             b"token_state", creator_mint.key().as_ref()
         ],
@@ -137,6 +138,22 @@ impl<'info> PurchaseToken<'info> {
     }
 
     pub fn get_current_token_price(&self, amount: u64) -> Result<u64> {
+        let base_price_per_token = self.token_state.initial_price_per_token; // 25 lamports per token
+        let slope_per_token = self.global_state.slope; // Linear increase per token sold
+        let tokens_sold_in_tokens = self.token_state.tokens_sold / 1_000_000_000; // Convert to token units
+
+        // Linear pricing: current_price = base + (slope × tokens_already_sold)
+        let current_price_per_token =
+            base_price_per_token + (slope_per_token * tokens_sold_in_tokens);
+
+        // Cost = current_price × amount_buying (in token units)
+        let amount_in_tokens = amount / 1_000_000_000;
+        let total_cost = current_price_per_token * amount_in_tokens;
+
+        Ok(total_cost)
+    }
+
+    pub fn get_current_token_price_quad(&self, amount: u64) -> Result<u64> {
         let base_price = self.token_state.initial_price_per_token;
         let slope = self.global_state.slope;
         let tokens_sold = self.token_state.tokens_sold;
