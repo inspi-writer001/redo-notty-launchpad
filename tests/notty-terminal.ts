@@ -26,49 +26,49 @@ describe("notty-terminal", () => {
 
   const program = anchor.workspace.nottyTerminal as Program<NottyTerminal>;
 
-  it("Is initialized!", async () => {
-    // Add your test here.
-    const tx = await program.methods
-      .initialize({
-        listingFeeLamport: new anchor.BN(50_000_000), // 0.001 SOL listing fee
-        slope: new anchor.BN(1)
-      })
-      .accounts({
-        admin: admin_wallet.publicKey
-      })
-      .signers([admin_wallet])
-      .rpc();
-    console.log("Your transaction signature", tx);
-  });
+  // it("Is initialized!", async () => {
+  //   // Add your test here.
+  //   const tx = await program.methods
+  //     .initialize({
+  //       listingFeeLamport: new anchor.BN(50_000_000),
+  //       slope: new anchor.BN(1)
+  //     })
+  //     .accounts({
+  //       admin: admin_wallet.publicKey
+  //     })
+  //     .signers([admin_wallet])
+  //     .rpc();
+  //   console.log("Your transaction signature", tx);
+  // });
 
   it("should create token and purchase it", async () => {
     try {
-      let tokenMint = anchor.web3.Keypair.generate();
-      // let tokenMint = {
-      //   publicKey: new anchor.web3.PublicKey(
-      //     "8it4imaJgw2bt32BsNni74FqS3fES8u4R1H9bXLjovrm"
-      //   )
-      // };
+      // let tokenMint = anchor.web3.Keypair.generate();
+      let tokenMint = {
+        publicKey: new anchor.web3.PublicKey(
+          "CBNjiFBXSKZMkKDXeEFnHymwHyqiDqYkvaR8z6BTMbHy"
+        )
+      };
 
       console.log(tokenMint.publicKey.toBase58());
       // Add your test here.
-      const tx = await program.methods
-        .createToken({
-          name: "Shinobi Jenks",
-          tokenSymbol: "SJK",
-          tokenUri: "https://avatars.githubusercontent.com/u/94226358?v=4",
-          endMcap: new anchor.BN(100_000_000), // 0.1 SOL end market cap
-          startMcap: new anchor.BN(100_000), // 0.001 SOL start market cap
-          totalSupply: new anchor.BN(1_000_000_000_000)
-        })
-        .signers([admin_wallet, tokenMint])
-        .accounts({
-          creator: admin_wallet.publicKey,
-          creatorMint: tokenMint.publicKey,
-          tokenProgram: TOKEN_PROGRAM_ID
-        })
-        .rpc();
-      console.log("Your transaction signature", tx);
+      // const tx = await program.methods
+      //   .createToken({
+      //     name: "Shinobi Jenks",
+      //     tokenSymbol: "SJK",
+      //     tokenUri: "https://avatars.githubusercontent.com/u/94226358?v=4",
+      //     endMcap: new anchor.BN(460_000_000_000), // 460 SOL (matches your metrics)
+      //     startMcap: new anchor.BN(25_000_000_000), // 25 SOL (matches your metrics)
+      //     totalSupply: new anchor.BN(1_000_000_000) // 1B tokens (matches your metrics)
+      //   })
+      //   .signers([user_1_wallet, tokenMint])
+      //   .accounts({
+      //     creator: user_1_wallet.publicKey,
+      //     creatorMint: tokenMint.publicKey,
+      //     tokenProgram: TOKEN_PROGRAM_ID
+      //   })
+      //   .rpc();
+      // console.log("Your transaction signature", tx);
 
       let [token_state, _] = anchor.web3.PublicKey.findProgramAddressSync(
         [Buffer.from("token_state"), tokenMint.publicKey.toBytes()],
@@ -85,7 +85,7 @@ describe("notty-terminal", () => {
 
       const tx1 = await program.methods
         .purchaseToken({
-          amount: new anchor.BN(5_000),
+          amount: new anchor.BN(2_000_000_000),
           minAmountOut: new anchor.BN(0)
         })
         .signers([user_1_wallet])

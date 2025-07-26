@@ -206,11 +206,22 @@ impl<'info> CreateToken<'info> {
             signer_seeds,
         );
 
-        mint_to(cpi_context, args.total_supply)?;
+        mint_to(
+            cpi_context,
+            args.total_supply
+                .checked_mul(1_000_000_000)
+                .ok_or(NottyTerminalError::NumericalOverflow)?, // using 9 decimals
+        )?;
+
+        // Calculate price per base unit directly
+        let total_supply_base_units = args
+            .total_supply
+            .checked_mul(1_000_000_000)
+            .ok_or(NottyTerminalError::NumericalOverflow)?;
 
         let initial_price_per_token = args
             .start_mcap
-            .checked_div(args.total_supply)
+            .checked_div(total_supply_base_units)
             .ok_or(NottyTerminalError::NumericalOverflow)?;
 
         // set Token state

@@ -139,46 +139,62 @@ impl<'info> PurchaseToken<'info> {
     pub fn get_current_token_price(&self, amount: u64) -> Result<u64> {
         let base_price = self.token_state.initial_price_per_token;
         let slope = self.global_state.slope;
-        let tokens_sold = self.token_state.tokens_sold; // This is S₀ in your formula
+        let tokens_sold = self.token_state.tokens_sold;
         let n = amount;
-
-        // cost for n tokens = base_price * n + slope * (tokens_sold * n + n² / 2)
-        // where tokens_sold is the current position on the bonding curve
 
         // (1) base_price * n
         let first = base_price
             .checked_mul(n)
-            .ok_or(NottyTerminalError::NumericalOverflow)?;
+            .and_then(|result| result.checked_div(1_000_000_000)) // Divide by 10^9
+            .ok_or(PriceCalculationError::LinearCostOverflow)?;
 
         // (2) n² / 2
-        let n_squared = n
-            .checked_mul(n)
-            .ok_or(NottyTerminalError::NumericalOverflow)?;
+        let n_squared = {
+            let n_u128 = n as u128;
+            let n_squared_u128 = n_u128 * n_u128;
+
+            if n_squared_u128 > u64::MAX as u128 {
+                // For very large n, we can still calculate safely in u128
+                // since we'll be dividing by 2 and then by 10^9 later
+                n_squared_u128
+            } else {
+                n_squared_u128
+            }
+        };
+
         let second = n_squared
             .checked_div(2)
-            .ok_or(NottyTerminalError::NumericalOverflow)?;
+            .ok_or(PriceCalculationError::QuadraticDivisionOverflow)? as u64;
 
-        // (3) tokens_sold * n (NOT current_supply!)
+        // (3) tokens_sold * n
         let third = tokens_sold
             .checked_mul(n)
-            .ok_or(NottyTerminalError::NumericalOverflow)?;
+            .ok_or(PriceCalculationError::SlopeSupplyOverflow)?;
 
         // (4) third + second
         let inner = third
             .checked_add(second)
-            .ok_or(NottyTerminalError::NumericalOverflow)?;
+            .ok_or(PriceCalculationError::QuadraticSlopeOverflow)?;
 
-        // (5) slope * (tokens_sold * n + n²/2)
-        let slope_part = slope
-            .checked_mul(inner)
-            .ok_or(NottyTerminalError::NumericalOverflow)?;
+        // (5) slope * inner / DECIMALS_FACTOR using u128 to prevent overflow
+        const DECIMALS_FACTOR: u128 = 1_000_000_000; // 10^9 for 9 decimals
+
+        let slope_part = {
+            let slope_u128 = slope as u128;
+            let inner_u128 = inner as u128;
+            let result_u128 = slope_u128 * inner_u128 / DECIMALS_FACTOR;
+
+            if result_u128 > u64::MAX as u128 {
+                return Err(PriceCalculationError::QuadraticSlopeOverflow.into());
+            }
+            result_u128 as u64
+        };
 
         // (6) first + slope_part
         let total_cost_in_lamports = first
             .checked_add(slope_part)
-            .ok_or(NottyTerminalError::NumericalOverflow)?;
+            .ok_or(PriceCalculationError::FinalSumOverflow)?;
 
-        // Return cost directly in lamports - NO multiplication by 1000!
         Ok(total_cost_in_lamports)
     }
 }
