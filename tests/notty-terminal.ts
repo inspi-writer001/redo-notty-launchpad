@@ -26,22 +26,22 @@ describe("notty-terminal", () => {
 
   const program = anchor.workspace.nottyTerminal as Program<NottyTerminal>;
 
-  // it("Is initialized!", async () => {
-  //   // Add your test here.
-  //   const tx = await program.methods
-  //     .initialize({
-  //       listingFeeLamport: new anchor.BN(50_000_000),
-  //       slope: new anchor.BN(1)
-  //     })
-  //     .accounts({
-  //       admin: admin_wallet.publicKey
-  //     })
-  //     .signers([admin_wallet])
-  //     .rpc();
-  //   console.log("Your transaction signature", tx);
-  // });
+  it.skip("Is initialized!", async () => {
+    // Add your test here.
+    const tx = await program.methods
+      .initialize({
+        listingFeeLamport: new anchor.BN(50_000_000),
+        slope: new anchor.BN(1)
+      })
+      .accounts({
+        admin: admin_wallet.publicKey
+      })
+      .signers([admin_wallet])
+      .rpc();
+    console.log("Your transaction signature", tx);
+  });
 
-  it("should create token and purchase it", async () => {
+  it.skip("should create token and purchase it", async () => {
     try {
       // let tokenMint = anchor.web3.Keypair.generate();
       let tokenMint = {
@@ -98,7 +98,7 @@ describe("notty-terminal", () => {
         })
         .signers([user_1_wallet])
         .accounts({
-          buyer: user_1_wallet.publicKey,
+          user: user_1_wallet.publicKey,
           creatorMint: tokenMint.publicKey,
           tokenProgram: TOKEN_PROGRAM_ID,
           tokenVault: token_vault.address
@@ -122,46 +122,109 @@ describe("notty-terminal", () => {
     }
   });
 
-  // it("should fetch token state only", async () => {
-  //   const tokenMintAddress = "CBNjiFBXSKZMkKDXeEFnHymwHyqiDqYkvaR8z6BTMbHy";
+  it("should sell tokens", async () => {
+    try {
+      // let tokenMint = anchor.web3.Keypair.generate();
+      let tokenMint = {
+        publicKey: new anchor.web3.PublicKey(
+          "2Y4kJ6DmfQu3ePbfgNtQaFpF1ZYX85FmqvZ156LMpLmb"
+        )
+      };
 
-  //   let [token_state, _] = anchor.web3.PublicKey.findProgramAddressSync(
-  //     [
-  //       Buffer.from("token_state"),
-  //       new anchor.web3.PublicKey(tokenMintAddress).toBytes()
-  //     ],
-  //     program.programId
-  //   );
+      console.log(tokenMint.publicKey.toBase58());
 
-  //   try {
-  //     const tokenStateAccount = await program.account.tokenState.fetch(
-  //       token_state
-  //     );
+      console.log("=== BEFORE SALES ===");
 
-  //     console.log("=== QUICK TOKEN STATE CHECK ===");
-  //     console.log("✅ Token State exists!");
-  //     console.log(
-  //       "📊 Tokens Sold:",
-  //       Number(tokenStateAccount.tokensSold) / 1_000_000_000,
-  //       "tokens"
-  //     );
-  //     console.log(
-  //       "💰 SOL Raised:",
-  //       Number(tokenStateAccount.solRaised) / 1_000_000_000,
-  //       "SOL"
-  //     );
-  //     console.log(
-  //       "💎 Total Supply:",
-  //       Number(tokenStateAccount.totalSupply).toLocaleString(),
-  //       "tokens"
-  //     );
-  //     console.log(
-  //       "🏷️  Initial Price:",
-  //       tokenStateAccount.initialPricePerToken.toString(),
-  //       "lamports per token"
-  //     );
-  //   } catch (error) {
-  //     console.log("❌ Token State not found or error:", error.message);
-  //   }
-  // });
+      let [token_state, _] = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from("token_state"), tokenMint.publicKey.toBytes()],
+        program.programId
+      );
+
+      const beforeState = await program.account.tokenState.fetch(token_state);
+      console.log(
+        "SOL Raised before:",
+        Number(beforeState.solRaised) / 1_000_000_000
+      );
+
+      let token_vault = await getOrCreateAssociatedTokenAccount(
+        anchor.getProvider().connection,
+        user_1_wallet,
+        tokenMint.publicKey,
+        token_state,
+        true
+      );
+
+      const tx1 = await program.methods
+        .sellToken({
+          amount: new anchor.BN(1_000_000_000_000),
+          minProceeds: new anchor.BN(0)
+        })
+        .signers([user_1_wallet])
+        .accounts({
+          user: user_1_wallet.publicKey,
+          creatorMint: tokenMint.publicKey,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          tokenVault: token_vault.address
+        })
+        .rpc();
+
+      console.log("Your transaction signature 2", tx1);
+      console.log("=== AFTER SALES ===");
+      const afterState = await program.account.tokenState.fetch(token_state);
+      console.log(
+        "SOL Raised after:",
+        Number(afterState.solRaised) / 1_000_000_000
+      );
+      console.log(
+        "Tokens Sold:",
+        Number(afterState.tokensSold) / 1_000_000_000
+      );
+    } catch (error) {
+      console.log(error);
+      throw error.logs;
+    }
+  });
+
+  it.skip("should fetch token state only", async () => {
+    const tokenMintAddress = "CBNjiFBXSKZMkKDXeEFnHymwHyqiDqYkvaR8z6BTMbHy";
+
+    let [token_state, _] = anchor.web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("token_state"),
+        new anchor.web3.PublicKey(tokenMintAddress).toBytes()
+      ],
+      program.programId
+    );
+
+    try {
+      const tokenStateAccount = await program.account.tokenState.fetch(
+        token_state
+      );
+
+      console.log("=== QUICK TOKEN STATE CHECK ===");
+      console.log("✅ Token State exists!");
+      console.log(
+        "📊 Tokens Sold:",
+        Number(tokenStateAccount.tokensSold) / 1_000_000_000,
+        "tokens"
+      );
+      console.log(
+        "💰 SOL Raised:",
+        Number(tokenStateAccount.solRaised) / 1_000_000_000,
+        "SOL"
+      );
+      console.log(
+        "💎 Total Supply:",
+        Number(tokenStateAccount.totalSupply).toLocaleString(),
+        "tokens"
+      );
+      console.log(
+        "🏷️  Initial Price:",
+        tokenStateAccount.initialPricePerToken.toString(),
+        "lamports per token"
+      );
+    } catch (error) {
+      console.log("❌ Token State not found or error:", error.message);
+    }
+  });
 });
