@@ -32,6 +32,10 @@ pub enum NottyTerminalError {
     InsufficientFeeVaultBalance,
     #[msg("User rovided wrong vault account")]
     WrongVault,
+    #[msg("Insufficient token balance to sell")]
+    InsufficientTokenBalance,
+    #[msg("Vault has insufficient SOL balance")]
+    InsufficientVaultBalance,
 }
 
 #[error_code]

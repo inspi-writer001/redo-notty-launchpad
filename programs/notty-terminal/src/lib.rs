@@ -25,8 +25,13 @@ pub mod notty_terminal {
         Ok(())
     }
 
-    pub fn purchase_token(ctx: Context<PurchaseToken>, args: PurchaseTokenArgs) -> Result<()> {
+    pub fn purchase_token(ctx: Context<TokenInteraction>, args: PurchaseTokenArgs) -> Result<()> {
         ctx.accounts.handle_purchase(args)?;
+        Ok(())
+    }
+
+    pub fn sell_token(ctx: Context<TokenInteraction>, args: SellTokenArgs) -> Result<()> {
+        ctx.accounts.handle_sell(args)?;
         Ok(())
     }
 }
