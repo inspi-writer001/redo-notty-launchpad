@@ -70,6 +70,12 @@ pub struct TokenInteraction<'info> {
 
 impl<'info> TokenInteraction<'info> {
     pub fn handle_purchase(&mut self, args: PurchaseTokenArgs) -> Result<()> {
+        // check that token hasn't migrated
+        require!(
+            !self.token_state.migrated,
+            NottyTerminalError::AlreadyGraduated
+        );
+
         let amount = args.amount;
         let cost_lamports = self.get_current_token_price(amount)?;
 
@@ -129,6 +135,12 @@ impl<'info> TokenInteraction<'info> {
     }
 
     pub fn handle_sell(&mut self, args: SellTokenArgs) -> Result<()> {
+        // check that token hasn't migrated
+        require!(
+            !self.token_state.migrated,
+            NottyTerminalError::AlreadyGraduated
+        );
+
         let amount = args.amount;
 
         // (1) Validate seller has enough tokens
