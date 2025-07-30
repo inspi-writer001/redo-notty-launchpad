@@ -6,11 +6,42 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token_interface::{self, Mint, TokenAccount, TokenInterface},
 };
+use raydium_cpmm_cpi::{
+    cpi::{accounts::Initialize, initialize},
+    program::RaydiumCpmm,
+    states::{AmmConfig, ObservationState, PoolState},
+};
 
 use crate::{
     error::{NottyTerminalError, PriceCalculationError},
     GlobalState, TokenState,
 };
+
+pub const WSOL_MINT: Pubkey = pubkey!("So11111111111111111111111111111111111111112");
+
+// Raydium addresses
+#[cfg(feature = "devnet")]
+pub const RAYDIUM_CPMM_PROGRAM_ID: Pubkey = pubkey!("CPMDWBwJDtYax9qW7AyRuVC19Cc4L4Vcy4n2BHAbHkCW");
+#[cfg(not(feature = "devnet"))]
+pub const RAYDIUM_CPMM_PROGRAM_ID: Pubkey = pubkey!("CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C");
+
+#[cfg(feature = "devnet")]
+pub const AMM_CONFIG_25BPS: Pubkey = pubkey!("9zSzfkYy6awexsHvmggeH36pfVUdDGyCcwmjT3AQPBj6");
+#[cfg(not(feature = "devnet"))]
+pub const AMM_CONFIG_25BPS: Pubkey = pubkey!("D4FPEruKEHrG5TenZ2mpDGEfu1iUvTiqBxvpU8HLBvC2");
+
+#[cfg(feature = "devnet")]
+pub const CREATE_POOL_FEE_RECEIVER: Pubkey =
+    pubkey!("G11FKBRaAkHAKuLCgLM6K6NUc9rTjPAznRCjZifrTQe2");
+#[cfg(not(feature = "devnet"))]
+pub const CREATE_POOL_FEE_RECEIVER: Pubkey =
+    pubkey!("DNXgeM9EiiaAbaWvwjHj9fQQLAX5ZsfHyvmYUNRAdNC8");
+
+pub const POOL_SEED: &str = "pool";
+pub const POOL_LP_MINT_SEED: &str = "pool_lp_mint";
+pub const POOL_VAULT_SEED: &str = "pool_vault";
+pub const OBSERVATION_SEED: &str = "observation";
+pub const AUTH_SEED: &str = "vault_and_lp_mint_auth_seed";
 
 #[derive(Accounts)]
 pub struct TokenInteraction<'info> {
@@ -63,9 +94,126 @@ pub struct TokenInteraction<'info> {
     )]
     pub global_state: Account<'info, GlobalState>,
 
+    pub cp_swap_program: Program<'info, RaydiumCpmm>,
+
+    #[account(
+        address = AMM_CONFIG_25BPS @ NottyTerminalError::InvalidAmmConfig
+    )]
+    pub amm_config: Account<'info, AmmConfig>,
+
+    /// CHECK: pool vault and lp mint authority
+    #[account(
+        seeds = [
+            AUTH_SEED.as_bytes(),
+        ],
+        bump,
+        seeds::program = cp_swap_program.key(),
+    )]
+    pub authority: UncheckedAccount<'info>,
+
+    /// CHECK: Initialize an account to store the pool state (only used if migration triggers)
+    #[account(
+        mut,
+        seeds = [
+            POOL_SEED.as_bytes(),
+            amm_config.key().as_ref(),
+            creator_mint.key().as_ref(),  // token_0_mint (must be smaller than WSOL)
+            WSOL_MINT.as_ref(),           // token_1_mint
+        ],
+        bump,
+        seeds::program = cp_swap_program.key(),
+    )]
+    pub pool_state: UncheckedAccount<'info>,
+
+    /// CHECK: Pool LP mint (only created if migration triggers)
+    #[account(
+        mut,
+        seeds = [
+            POOL_LP_MINT_SEED.as_bytes(),
+            pool_state.key().as_ref(),
+        ],
+        bump,
+        seeds::program = cp_swap_program.key(),
+    )]
+    pub lp_mint: UncheckedAccount<'info>,
+
+    /// Creator's token_0 account (your token)
+    #[account(
+        init_if_needed,
+        payer = user,
+        associated_token::mint = creator_mint,
+        associated_token::authority = user,
+    )]
+    pub creator_token_0: InterfaceAccount<'info, TokenAccount>,
+
+    pub wsol_mint: InterfaceAccount<'info, Mint>,
+
+    /// Creator's token_1 account (WSOL)
+    #[account(
+        init_if_needed,
+        payer = user,
+        associated_token::mint = wsol_mint,
+        associated_token::authority = user,
+    )]
+    pub creator_token_1: InterfaceAccount<'info, TokenAccount>,
+
+    /// CHECK: Creator LP token account (only created if migration triggers)
+    #[account(
+        mut,
+        seeds = [creator_lp_token.key().as_ref()],
+        bump,
+        seeds::program = associated_token_program.key(),
+    )]
+    pub creator_lp_token: UncheckedAccount<'info>,
+
+    /// CHECK: Token_0 vault for the pool (only created if migration triggers)
+    #[account(
+        mut,
+        seeds = [
+            POOL_VAULT_SEED.as_bytes(),
+            pool_state.key().as_ref(),
+            creator_mint.key().as_ref()
+        ],
+        bump,
+        seeds::program = cp_swap_program.key(),
+    )]
+    pub token_0_vault: UncheckedAccount<'info>,
+
+    /// CHECK: Token_1 vault for the pool (only created if migration triggers)
+    #[account(
+        mut,
+        seeds = [
+            POOL_VAULT_SEED.as_bytes(),
+            pool_state.key().as_ref(),
+            WSOL_MINT.as_ref()
+        ],
+        bump,
+        seeds::program = cp_swap_program.key(),
+    )]
+    pub token_1_vault: UncheckedAccount<'info>,
+
+    #[account(
+        mut,
+        address = CREATE_POOL_FEE_RECEIVER @ NottyTerminalError::InvalidFeeReceiver
+    )]
+    pub create_pool_fee: InterfaceAccount<'info, TokenAccount>,
+
+    /// CHECK: Observation state for oracle data (only created if migration triggers)
+    #[account(
+        mut,
+        seeds = [
+            OBSERVATION_SEED.as_bytes(),
+            pool_state.key().as_ref(),
+        ],
+        bump,
+        seeds::program = cp_swap_program.key(),
+    )]
+    pub observation_state: UncheckedAccount<'info>,
+
     pub token_program: Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,
     pub associated_token_program: Program<'info, AssociatedToken>,
+    pub rent: Sysvar<'info, Rent>,
 }
 
 impl<'info> TokenInteraction<'info> {
@@ -281,6 +429,164 @@ impl<'info> TokenInteraction<'info> {
 
         Ok(total_cost)
     }
+
+    fn create_wsol_and_deposit(&mut self, amount: u64) -> Result<()> {
+        // Transfer SOL to WSOL token account
+        let cpi_accounts = Transfer {
+            from: self.user.to_account_info(),
+            to: self.creator_token_1.to_account_info(),
+        };
+
+        let cpi_context = CpiContext::new(self.system_program.to_account_info(), cpi_accounts);
+
+        transfer(cpi_context, amount)?;
+
+        // Sync native to update the WSOL token account balance
+        let sync_accounts = anchor_spl::token_interface::SyncNative {
+            account: self.creator_token_1.to_account_info(),
+        };
+
+        let sync_context = CpiContext::new(self.token_program.to_account_info(), sync_accounts);
+
+        anchor_spl::token_interface::sync_native(sync_context)?;
+
+        Ok(())
+    }
+
+    fn prepare_migration_assets(&mut self, token_amount: u64, sol_amount: u64) -> Result<()> {
+        // Transfer remaining tokens from vault to user (who will provide to pool)
+        let creator_mint = self.creator_mint.key();
+        let signer_seeds: &[&[&[u8]]] = &[&[
+            b"token_state",
+            creator_mint.as_ref(),
+            &[self.token_state.bump],
+        ]];
+
+        let cpi_accounts_token = token_interface::TransferChecked {
+            authority: self.token_state.to_account_info(),
+            from: self.token_vault.to_account_info(),
+            mint: self.creator_mint.to_account_info(),
+            to: self.creator_token_0.to_account_info(),
+        };
+
+        let cpi_ctx_token = CpiContext::new_with_signer(
+            self.token_program.to_account_info(),
+            cpi_accounts_token,
+            signer_seeds,
+        );
+
+        token_interface::transfer_checked(cpi_ctx_token, token_amount, self.creator_mint.decimals)?;
+
+        // Transfer SOL for WSOL conversion
+        let token_vault_key = self.token_vault.key();
+        let sol_signer_seeds: &[&[&[u8]]] = &[&[
+            b"sol_vault",
+            token_vault_key.as_ref(),
+            &[self.token_state.sol_vault_bump],
+        ]];
+
+        let cpi_transfer_accounts = Transfer {
+            from: self.sol_vault.to_account_info(),
+            to: self.user.to_account_info(),
+        };
+
+        let cpi_ctx_transfer = CpiContext::new_with_signer(
+            self.system_program.to_account_info(),
+            cpi_transfer_accounts,
+            sol_signer_seeds,
+        );
+
+        transfer(cpi_ctx_transfer, sol_amount)?;
+
+        // Convert SOL to WSOL
+        self.create_wsol_and_deposit(sol_amount)?;
+
+        Ok(())
+    }
+
+    fn handle_migration(&mut self) -> Result<()> {
+        msg!("🚀 Triggering automatic migration to Raydium...");
+
+        // Verify token ordering constraint
+        require!(
+            self.creator_mint.key() < WSOL_MINT,
+            NottyTerminalError::InvalidTokenOrdering
+        );
+
+        // Calculate migration amounts
+        let remaining_tokens = self.token_vault.amount;
+        let sol_liquidity = self.sol_vault.lamports();
+        let pool_creation_fee = 150_000_000; // 0.15 SOL
+        let available_sol = sol_liquidity.saturating_sub(pool_creation_fee);
+
+        // Transfer assets for migration
+        self.prepare_migration_assets(remaining_tokens, available_sol)?;
+
+        // Create Raydium pool via CPI
+        self.create_raydium_pool(remaining_tokens, available_sol)?;
+
+        // Update state
+        self.token_state.migrated = true;
+        self.token_state.raydium_pool = Some(self.pool_state.key());
+        self.token_state.migration_timestamp = Clock::get()?.unix_timestamp;
+
+        emit!(MigrationCompletedEvent {
+            token_mint: self.creator_mint.key(),
+            completing_buyer: self.user.key(),
+            pool_address: self.pool_state.key(),
+            tokens_migrated: remaining_tokens,
+            sol_migrated: available_sol,
+            timestamp: self.token_state.migration_timestamp,
+        });
+
+        msg!(
+            "✅ Migration successful! Raydium pool: {}",
+            self.pool_state.key()
+        );
+
+        Ok(())
+    }
+
+    fn create_raydium_pool(&mut self, token_amount: u64, sol_amount: u64) -> Result<()> {
+        // Create all Raydium accounts first (pool_state, lp_mint, vaults, observation_state, creator_lp_token)
+        // self.initialize_raydium_accounts()?;
+
+        // Now call Raydium initialize with all accounts created
+        let initialize_accounts = Initialize {
+            creator: self.user.to_account_info(),
+            amm_config: self.amm_config.to_account_info(),
+            authority: self.authority.to_account_info(),
+            pool_state: self.pool_state.to_account_info(),
+            token_0_mint: self.creator_mint.to_account_info(),
+            token_1_mint: self.wsol_mint.to_account_info(),
+            lp_mint: self.lp_mint.to_account_info(),
+            creator_token_0: self.creator_token_0.to_account_info(),
+            creator_token_1: self.creator_token_1.to_account_info(),
+            creator_lp_token: self.creator_lp_token.to_account_info(),
+            token_0_vault: self.token_0_vault.to_account_info(),
+            token_1_vault: self.token_1_vault.to_account_info(),
+            create_pool_fee: self.create_pool_fee.to_account_info(),
+            observation_state: self.observation_state.to_account_info(),
+            token_program: self.token_program.to_account_info(),
+            token_0_program: self.token_program.to_account_info(),
+            token_1_program: self.token_program.to_account_info(),
+            associated_token_program: self.associated_token_program.to_account_info(),
+            system_program: self.system_program.to_account_info(),
+            rent: self.rent.to_account_info(),
+        };
+
+        let cpi_context =
+            CpiContext::new(self.cp_swap_program.to_account_info(), initialize_accounts);
+
+        initialize(
+            cpi_context,
+            token_amount,
+            sol_amount,
+            Clock::get()?.unix_timestamp as u64, // Open immediately
+        )?;
+
+        Ok(())
+    }
 }
 
 #[derive(AnchorDeserialize, AnchorSerialize, Clone)]
@@ -295,6 +601,15 @@ pub struct SellTokenArgs {
     pub min_proceeds: u64, // Minimum SOL to receive (slippage protection)
 }
 
+#[event]
+pub struct MigrationCompletedEvent {
+    pub token_mint: Pubkey,
+    pub completing_buyer: Pubkey,
+    pub pool_address: Pubkey,
+    pub tokens_migrated: u64,
+    pub sol_migrated: u64,
+    pub timestamp: i64,
+}
 // token price = base_price + slope × S (Linear)
 
 // where S = current token supply (tokens sold)

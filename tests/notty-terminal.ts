@@ -20,11 +20,83 @@ let user_1_wallet = anchor.web3.Keypair.fromSecretKey(
   new Uint8Array(user_1_file)
 );
 
+// Constants
+const WSOL_MINT = new anchor.web3.PublicKey(
+  "So11111111111111111111111111111111111111112"
+);
+const RAYDIUM_CPMM_PROGRAM_ID = new anchor.web3.PublicKey(
+  "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C"
+);
+const AMM_CONFIG_25BPS = new anchor.web3.PublicKey(
+  "D4FPEruKEHrG5TenZ2mpDGEfu1iUvTiqBxvpU8HLBvC2"
+);
+const CREATE_POOL_FEE_RECEIVER = new anchor.web3.PublicKey(
+  "DNXgeM9EiiaAbaWvwjHj9fQQLAX5ZsfHyvmYUNRAdNC8"
+);
+
+// Seeds
+const POOL_SEED = "pool";
+const POOL_LP_MINT_SEED = "pool_lp_mint";
+const POOL_VAULT_SEED = "pool_vault";
+const OBSERVATION_SEED = "observation";
+const AUTH_SEED = "vault_and_lp_mint_auth_seed";
+
 describe("notty-terminal", () => {
   // Configure the client to use the local cluster.
   anchor.setProvider(anchor.AnchorProvider.env());
 
   const program = anchor.workspace.nottyTerminal as Program<NottyTerminal>;
+
+  const [tokenVault] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("token_vault"), tokenMint.toBuffer()], // Adjust based on your derivation
+    program.programId
+  );
+
+  const [solVault] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("sol_vault"), tokenVault.toBuffer()],
+    program.programId
+  );
+
+  const [globalState] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("global_state")],
+    program.programId
+  );
+
+  // Derive Raydium accounts
+  const [authority] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from(AUTH_SEED)],
+    RAYDIUM_CPMM_PROGRAM_ID
+  );
+
+  const [poolState] = anchor.web3.PublicKey.findProgramAddressSync(
+    [
+      Buffer.from(POOL_SEED),
+      AMM_CONFIG_25BPS.toBuffer(),
+      tokenMint.toBuffer(), // token_0 (must be < WSOL)
+      WSOL_MINT.toBuffer() // token_1
+    ],
+    RAYDIUM_CPMM_PROGRAM_ID
+  );
+
+  const [lpMint] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from(POOL_LP_MINT_SEED), poolState.toBuffer()],
+    RAYDIUM_CPMM_PROGRAM_ID
+  );
+
+  const [token0Vault] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from(POOL_VAULT_SEED), poolState.toBuffer(), tokenMint.toBuffer()],
+    RAYDIUM_CPMM_PROGRAM_ID
+  );
+
+  const [token1Vault] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from(POOL_VAULT_SEED), poolState.toBuffer(), WSOL_MINT.toBuffer()],
+    RAYDIUM_CPMM_PROGRAM_ID
+  );
+
+  const [observationState] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from(OBSERVATION_SEED), poolState.toBuffer()],
+    RAYDIUM_CPMM_PROGRAM_ID
+  );
 
   it.skip("Is initialized!", async () => {
     // Add your test here.

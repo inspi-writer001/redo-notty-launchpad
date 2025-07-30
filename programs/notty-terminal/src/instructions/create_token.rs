@@ -236,6 +236,8 @@ impl<'info> CreateToken<'info> {
             sol_vault_bump: bumps.sol_vault,
             start_mcap: args.start_mcap,
             end_mcap: args.end_mcap,
+            raydium_pool: None,
+            migration_timestamp: 0,
         });
 
         Ok(())

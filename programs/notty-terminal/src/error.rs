@@ -36,6 +36,12 @@ pub enum NottyTerminalError {
     InsufficientTokenBalance,
     #[msg("Vault has insufficient SOL balance")]
     InsufficientVaultBalance,
+    #[msg("Invalid token ordering - token must be < WSOL")]
+    InvalidTokenOrdering,
+    #[msg("Invalid AMM config")]
+    InvalidAmmConfig,
+    #[msg("Invalid fee receiver")]
+    InvalidFeeReceiver,
 }
 
 #[error_code]
