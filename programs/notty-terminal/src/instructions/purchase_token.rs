@@ -20,22 +20,28 @@ use crate::{
 pub const WSOL_MINT: Pubkey = pubkey!("So11111111111111111111111111111111111111112");
 
 // Raydium addresses
-#[cfg(feature = "devnet")]
+// #[cfg(feature = "devnet")]
+// pub const RAYDIUM_CPMM_PROGRAM_ID: Pubkey = pubkey!("CPMDWBwJDtYax9qW7AyRuVC19Cc4L4Vcy4n2BHAbHkCW");
+// #[cfg(not(feature = "devnet"))]
+// pub const RAYDIUM_CPMM_PROGRAM_ID: Pubkey = pubkey!("CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C");
+
+// #[cfg(feature = "devnet")]
+// pub const AMM_CONFIG_25BPS: Pubkey = pubkey!("9zSzfkYy6awexsHvmggeH36pfVUdDGyCcwmjT3AQPBj6");
+// #[cfg(not(feature = "devnet"))]
+// pub const AMM_CONFIG_25BPS: Pubkey = pubkey!("D4FPEruKEHrG5TenZ2mpDGEfu1iUvTiqBxvpU8HLBvC2");
+
+// #[cfg(feature = "devnet")]
+// pub const CREATE_POOL_FEE_RECEIVER: Pubkey =
+//     pubkey!("G11FKBRaAkHAKuLCgLM6K6NUc9rTjPAznRCjZifrTQe2");
+// #[cfg(not(feature = "devnet"))]
+// pub const CREATE_POOL_FEE_RECEIVER: Pubkey =
+//     pubkey!("DNXgeM9EiiaAbaWvwjHj9fQQLAX5ZsfHyvmYUNRAdNC8");
+
+//  Simple hardcoded devnet values
 pub const RAYDIUM_CPMM_PROGRAM_ID: Pubkey = pubkey!("CPMDWBwJDtYax9qW7AyRuVC19Cc4L4Vcy4n2BHAbHkCW");
-#[cfg(not(feature = "devnet"))]
-pub const RAYDIUM_CPMM_PROGRAM_ID: Pubkey = pubkey!("CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C");
-
-#[cfg(feature = "devnet")]
 pub const AMM_CONFIG_25BPS: Pubkey = pubkey!("9zSzfkYy6awexsHvmggeH36pfVUdDGyCcwmjT3AQPBj6");
-#[cfg(not(feature = "devnet"))]
-pub const AMM_CONFIG_25BPS: Pubkey = pubkey!("D4FPEruKEHrG5TenZ2mpDGEfu1iUvTiqBxvpU8HLBvC2");
-
-#[cfg(feature = "devnet")]
 pub const CREATE_POOL_FEE_RECEIVER: Pubkey =
     pubkey!("G11FKBRaAkHAKuLCgLM6K6NUc9rTjPAznRCjZifrTQe2");
-#[cfg(not(feature = "devnet"))]
-pub const CREATE_POOL_FEE_RECEIVER: Pubkey =
-    pubkey!("DNXgeM9EiiaAbaWvwjHj9fQQLAX5ZsfHyvmYUNRAdNC8");
 
 pub const POOL_SEED: &str = "pool";
 pub const POOL_LP_MINT_SEED: &str = "pool_lp_mint";
@@ -54,7 +60,7 @@ pub struct TokenInteraction<'info> {
         constraint = creator_mint.freeze_authority == Some(token_state.key()).into(),
         constraint = creator_mint.key() == token_state.mint.key()
     )]
-    pub creator_mint: InterfaceAccount<'info, Mint>,
+    pub creator_mint: Box<InterfaceAccount<'info, Mint>>, // ✅ BOXED
 
     #[account(
         init_if_needed,
@@ -62,14 +68,14 @@ pub struct TokenInteraction<'info> {
         associated_token::mint = creator_mint,
         associated_token::authority = user
     )]
-    pub user_ata: InterfaceAccount<'info, TokenAccount>,
+    pub user_ata: Box<InterfaceAccount<'info, TokenAccount>>, // ✅ BOXED
 
     #[account(
         mut,
         constraint =  token_vault.mint == creator_mint.key(),
         constraint = token_vault.owner == token_state.key(),
     )]
-    pub token_vault: InterfaceAccount<'info, TokenAccount>,
+    pub token_vault: Box<InterfaceAccount<'info, TokenAccount>>, // ✅ BOXED
 
     #[account(
         mut,
@@ -78,28 +84,28 @@ pub struct TokenInteraction<'info> {
         ],
         bump = token_state.bump
     )]
-    pub token_state: Account<'info, TokenState>,
+    pub token_state: Box<Account<'info, TokenState>>, // ✅ BOXED
 
     #[account(
         mut,
         seeds = [b"sol_vault", token_vault.key().as_ref()],
         bump,
     )]
-    pub sol_vault: SystemAccount<'info>,
+    pub sol_vault: SystemAccount<'info>, // ⚪ Small - no boxing needed
 
     #[account(
         mut,
         seeds = [b"global_state"],
         bump = global_state.bump
     )]
-    pub global_state: Account<'info, GlobalState>,
+    pub global_state: Box<Account<'info, GlobalState>>, // ✅ BOXED
 
-    pub cp_swap_program: Program<'info, RaydiumCpmm>,
+    pub cp_swap_program: Program<'info, RaydiumCpmm>, // ⚪ Small - no boxing needed
 
     #[account(
         address = AMM_CONFIG_25BPS @ NottyTerminalError::InvalidAmmConfig
     )]
-    pub amm_config: Account<'info, AmmConfig>,
+    pub amm_config: Box<Account<'info, AmmConfig>>, // ✅ BOXED (Raydium state can be large)
 
     /// CHECK: pool vault and lp mint authority
     #[account(
@@ -109,7 +115,7 @@ pub struct TokenInteraction<'info> {
         bump,
         seeds::program = cp_swap_program.key(),
     )]
-    pub authority: UncheckedAccount<'info>,
+    pub authority: UncheckedAccount<'info>, // ⚪ Small - no boxing needed
 
     /// CHECK: Initialize an account to store the pool state (only used if migration triggers)
     #[account(
@@ -123,7 +129,7 @@ pub struct TokenInteraction<'info> {
         bump,
         seeds::program = cp_swap_program.key(),
     )]
-    pub pool_state: UncheckedAccount<'info>,
+    pub pool_state: UncheckedAccount<'info>, // ⚪ Small - no boxing needed
 
     /// CHECK: Pool LP mint (only created if migration triggers)
     #[account(
@@ -135,7 +141,7 @@ pub struct TokenInteraction<'info> {
         bump,
         seeds::program = cp_swap_program.key(),
     )]
-    pub lp_mint: UncheckedAccount<'info>,
+    pub lp_mint: UncheckedAccount<'info>, // ⚪ Small - no boxing needed
 
     /// Creator's token_0 account (your token)
     #[account(
@@ -144,9 +150,9 @@ pub struct TokenInteraction<'info> {
         associated_token::mint = creator_mint,
         associated_token::authority = user,
     )]
-    pub creator_token_0: InterfaceAccount<'info, TokenAccount>,
+    pub creator_token_0: Box<InterfaceAccount<'info, TokenAccount>>, // ✅ BOXED
 
-    pub wsol_mint: InterfaceAccount<'info, Mint>,
+    pub wsol_mint: Box<InterfaceAccount<'info, Mint>>, // ✅ BOXED
 
     /// Creator's token_1 account (WSOL)
     #[account(
@@ -155,7 +161,7 @@ pub struct TokenInteraction<'info> {
         associated_token::mint = wsol_mint,
         associated_token::authority = user,
     )]
-    pub creator_token_1: InterfaceAccount<'info, TokenAccount>,
+    pub creator_token_1: Box<InterfaceAccount<'info, TokenAccount>>, // ✅ BOXED
 
     /// CHECK: Creator LP token account (only created if migration triggers)
     #[account(
@@ -164,8 +170,10 @@ pub struct TokenInteraction<'info> {
         bump,
         seeds::program = associated_token_program.key(),
     )]
-    pub creator_lp_token: UncheckedAccount<'info>,
-
+    pub creator_lp_token: UncheckedAccount<'info>, // ⚪ Small - no boxing needed
+    // /// CHECK: Creator LP token - will be created by Raydium
+    // #[account(mut)] // Raydium will derive this as ATA
+    // pub creator_lp_token: UncheckedAccount<'info>,
     /// CHECK: Token_0 vault for the pool (only created if migration triggers)
     #[account(
         mut,
@@ -177,7 +185,7 @@ pub struct TokenInteraction<'info> {
         bump,
         seeds::program = cp_swap_program.key(),
     )]
-    pub token_0_vault: UncheckedAccount<'info>,
+    pub token_0_vault: UncheckedAccount<'info>, // ⚪ Small - no boxing needed
 
     /// CHECK: Token_1 vault for the pool (only created if migration triggers)
     #[account(
@@ -190,13 +198,13 @@ pub struct TokenInteraction<'info> {
         bump,
         seeds::program = cp_swap_program.key(),
     )]
-    pub token_1_vault: UncheckedAccount<'info>,
+    pub token_1_vault: UncheckedAccount<'info>, // ⚪ Small - no boxing needed
 
     #[account(
         mut,
         address = CREATE_POOL_FEE_RECEIVER @ NottyTerminalError::InvalidFeeReceiver
     )]
-    pub create_pool_fee: InterfaceAccount<'info, TokenAccount>,
+    pub create_pool_fee: Box<InterfaceAccount<'info, TokenAccount>>, // ✅ BOXED
 
     /// CHECK: Observation state for oracle data (only created if migration triggers)
     #[account(
@@ -208,12 +216,12 @@ pub struct TokenInteraction<'info> {
         bump,
         seeds::program = cp_swap_program.key(),
     )]
-    pub observation_state: UncheckedAccount<'info>,
+    pub observation_state: UncheckedAccount<'info>, // ⚪ Small - no boxing needed
 
-    pub token_program: Interface<'info, TokenInterface>,
-    pub system_program: Program<'info, System>,
-    pub associated_token_program: Program<'info, AssociatedToken>,
-    pub rent: Sysvar<'info, Rent>,
+    pub token_program: Interface<'info, TokenInterface>, // ⚪ Small - no boxing needed
+    pub system_program: Program<'info, System>,          // ⚪ Small - no boxing needed
+    pub associated_token_program: Program<'info, AssociatedToken>, // ⚪ Small - no boxing needed
+    pub rent: Sysvar<'info, Rent>,                       // ⚪ Small - no boxing needed
 }
 
 impl<'info> TokenInteraction<'info> {

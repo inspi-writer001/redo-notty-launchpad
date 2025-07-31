@@ -9,7 +9,8 @@ crate-type = ["cdylib", "lib"]
 name = "notty_terminal"
 
 [features]
-default = []
+default = ["devnet"]
+devnet = []
 cpi = ["no-entrypoint"]
 no-entrypoint = []
 no-idl = []
@@ -17,7 +18,7 @@ no-log-ix-name = []
 idl-build = [
     "anchor-lang/idl-build",
     "anchor-spl/idl-build",
-    "raydium-cpmm-cpi/idl-build",
+    # "raydium-cpmm-cpi/idl-build",
 ]
 
 

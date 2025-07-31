@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-notty_terminal = "Brqm9dR2GiZkuy9FDo2ToHwQoAykgng8LhsZ2jwpYFoE"
+notty_terminal = "3Jy5qUaaAQMKVUehh4cLncAAYVgf1XELnt1RhNJGe8ZD"
 
 [registry]
 url = "https://api.apr.dev"
