@@ -58,7 +58,7 @@ describe("notty-terminal", () => {
           name: "Shinobi Jenks",
           tokenSymbol: "SJK",
           tokenUri: "https://avatars.githubusercontent.com/u/94226358?v=4",
-          endMcap: new anchor.BN(460_000_000_000), // 460 SOL (matches your metrics)
+          targetSol: new anchor.BN(460_000_000_000), // 460 SOL (matches your metrics)
           startMcap: new anchor.BN(25_000_000_000), // 25 SOL (matches your metrics)
           totalSupply: new anchor.BN(1_000_000_000) // 1B tokens (matches your metrics)
         })
