@@ -235,7 +235,7 @@ impl<'info> CreateToken<'info> {
             total_supply: args.total_supply,
             sol_vault_bump: bumps.sol_vault,
             start_mcap: args.start_mcap,
-            end_mcap: args.end_mcap,
+            target_sol: args.target_sol,
             raydium_pool: None,
             migration_timestamp: 0,
             creator: self.creator.key(),
@@ -249,7 +249,7 @@ impl<'info> CreateToken<'info> {
             tokens_sold: 0,
             total_supply: args.total_supply,
             start_mcap: args.start_mcap,
-            end_mcap: args.end_mcap,
+            target_sol: args.target_sol,
             raydium_pool: None,
             migration_timestamp: 0,
             creator: self.creator.key(),
@@ -266,7 +266,7 @@ pub struct CreateTokenArgs {
     pub token_uri: String,
     pub total_supply: u64, // Token-specific total supply
     pub start_mcap: u64,   // Starting market cap in lamports
-    pub end_mcap: u64,     // Ending market cap in lamports
+    pub target_sol: u64,   // Ending market cap in lamports
 }
 
 #[event]
@@ -278,7 +278,7 @@ pub struct TokenCreated {
     pub tokens_sold: u64,
     pub sol_raised: u64,
     pub start_mcap: u64,
-    pub end_mcap: u64,
+    pub target_sol: u64,
     pub creator: Pubkey,
     pub raydium_pool: Option<Pubkey>,
     pub migration_timestamp: i64,

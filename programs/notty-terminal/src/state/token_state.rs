@@ -12,7 +12,7 @@ pub struct TokenState {
     pub tokens_sold: u64,
     pub sol_raised: u64,
     pub start_mcap: u64,
-    pub end_mcap: u64,
+    pub target_sol: u64,
 
     pub raydium_pool: Option<Pubkey>,
     pub migration_timestamp: i64,

@@ -30,7 +30,7 @@ pub enum NottyTerminalError {
     UnauthorizedAdmin,
     #[msg("Fee vault doesn't have enough balance")]
     InsufficientFeeVaultBalance,
-    #[msg("User rovided wrong vault account")]
+    #[msg("User provided wrong vault account")]
     WrongVault,
     #[msg("Insufficient token balance to sell")]
     InsufficientTokenBalance,
@@ -42,6 +42,8 @@ pub enum NottyTerminalError {
     InvalidAmmConfig,
     #[msg("Invalid fee receiver")]
     InvalidFeeReceiver,
+    #[msg("User provided wrong mint account for token_0")]
+    WrongMint,
 }
 
 #[error_code]
