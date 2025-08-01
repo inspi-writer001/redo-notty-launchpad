@@ -238,6 +238,21 @@ impl<'info> CreateToken<'info> {
             end_mcap: args.end_mcap,
             raydium_pool: None,
             migration_timestamp: 0,
+            creator: self.creator.key(),
+        });
+
+        emit!(TokenCreated {
+            migrated: false,
+            mint: self.creator_mint.key(),
+            initial_price_per_token,
+            sol_raised: amount_to_transfer,
+            tokens_sold: 0,
+            total_supply: args.total_supply,
+            start_mcap: args.start_mcap,
+            end_mcap: args.end_mcap,
+            raydium_pool: None,
+            migration_timestamp: 0,
+            creator: self.creator.key(),
         });
 
         Ok(())
@@ -252,4 +267,19 @@ pub struct CreateTokenArgs {
     pub total_supply: u64, // Token-specific total supply
     pub start_mcap: u64,   // Starting market cap in lamports
     pub end_mcap: u64,     // Ending market cap in lamports
+}
+
+#[event]
+pub struct TokenCreated {
+    pub mint: Pubkey,
+    pub initial_price_per_token: u64,
+    pub migrated: bool,
+    pub total_supply: u64,
+    pub tokens_sold: u64,
+    pub sol_raised: u64,
+    pub start_mcap: u64,
+    pub end_mcap: u64,
+    pub creator: Pubkey,
+    pub raydium_pool: Option<Pubkey>,
+    pub migration_timestamp: i64,
 }

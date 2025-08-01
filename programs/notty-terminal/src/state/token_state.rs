@@ -16,4 +16,5 @@ pub struct TokenState {
 
     pub raydium_pool: Option<Pubkey>,
     pub migration_timestamp: i64,
+    pub creator: Pubkey,
 }
