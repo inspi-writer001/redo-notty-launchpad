@@ -13,6 +13,8 @@ declare_id!("3Jy5qUaaAQMKVUehh4cLncAAYVgf1XELnt1RhNJGe8ZD");
 
 #[program]
 pub mod notty_terminal {
+    use crate::error::NottyTerminalError;
+
     use super::*;
 
     pub fn initialize(ctx: Context<InitializeGlobalState>, args: InitializeArgs) -> Result<()> {
@@ -34,4 +36,28 @@ pub mod notty_terminal {
         ctx.accounts.handle_sell(args)?;
         Ok(())
     }
+
+    pub fn migrate_to_raydium(ctx: Context<Launch>, params: LaunchParam) -> Result<()> {
+        let init_amount_0 = ctx
+            .accounts
+            .token_state
+            .total_supply
+            .checked_sub(ctx.accounts.token_state.tokens_sold)
+            .ok_or(NottyTerminalError::InsufficientVaultBalance)?;
+
+        let init_amount_1 = ctx.accounts.token_state.sol_raised;
+        let open_time = match params.time {
+            Some(value) => value as u64,
+            None => Clock::get()?.unix_timestamp as u64,
+        };
+
+        ctx.accounts
+            .handle_launch(init_amount_0, init_amount_1, open_time)?;
+        Ok(())
+    }
+}
+
+#[derive(AnchorDeserialize, AnchorSerialize)]
+pub struct LaunchParam {
+    pub time: Option<i64>,
 }

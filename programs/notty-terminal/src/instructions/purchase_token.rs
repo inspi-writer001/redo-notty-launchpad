@@ -152,6 +152,11 @@ impl<'info> TokenInteraction<'info> {
             NottyTerminalError::AlreadyGraduated
         );
 
+        require!(
+            self.token_state.sol_raised < self.token_state.target_sol,
+            NottyTerminalError::AwaitingGraduation
+        );
+
         let amount = args.amount;
 
         // (1) Validate seller has enough tokens

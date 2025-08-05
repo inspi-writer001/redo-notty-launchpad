@@ -44,6 +44,8 @@ pub enum NottyTerminalError {
     InvalidFeeReceiver,
     #[msg("User provided wrong mint account for token_0")]
     WrongMint,
+    #[msg("Trading is paused as token is preparing for migration")]
+    AwaitingGraduation,
 }
 
 #[error_code]

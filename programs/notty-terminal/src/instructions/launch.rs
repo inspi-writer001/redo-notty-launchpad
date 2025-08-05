@@ -172,10 +172,10 @@ impl<'info> Launch<'info> {
             NottyTerminalError::AlreadyMigrated
         );
 
-        require!(
-            self.token_state.sol_raised == self.token_state.target_sol,
-            NottyTerminalError::TargetNotReached
-        );
+        // require!(
+        //     self.token_state.sol_raised == self.token_state.target_sol,
+        //     NottyTerminalError::TargetNotReached
+        // );
 
         let cpi_accounts = cpi::accounts::Initialize {
             creator: self.creator.to_account_info(),
