@@ -1,7 +1,10 @@
-use anchor_lang::prelude::*;
+use anchor_lang::{
+    prelude::*,
+    system_program::{transfer, Transfer},
+};
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::Token,
+    token::{self, Token},
     token_interface::{Mint, TokenAccount, TokenInterface},
 };
 use raydium_cpmm_cpi::{
@@ -13,11 +16,18 @@ use raydium_cpmm_cpi::{
 use crate::{error::NottyTerminalError, TokenState};
 
 #[derive(Accounts)]
+#[instruction(param: LaunchParam)]
 pub struct Launch<'info> {
     pub cp_swap_program: Program<'info, RaydiumCpmm>,
     /// Address paying to create the pool. Can be anyone
+
+    #[account(
+        constraint = token_state.creator.key() == creator.key() @NottyTerminalError::WrongCreator
+   )]
+    pub creator: SystemAccount<'info>,
+
     #[account(mut)]
-    pub creator: Signer<'info>,
+    pub signer: Signer<'info>,
 
     /// Which config the pool belongs to.
     pub amm_config: Box<Account<'info, AmmConfig>>,
@@ -91,15 +101,16 @@ pub struct Launch<'info> {
     #[account(mut)]
     pub creator_lp_token: UncheckedAccount<'info>,
 
+    // using tokenMint because token order could be rotated from client
     #[account(
         mut,
         seeds = [
-            b"token_state", token_0_mint.key().as_ref()
+            b"token_state", param.token_mint.key().as_ref()
         ],
         bump = token_state.bump,
-        constraint = token_0_mint.key() == token_state.mint.key() @NottyTerminalError::WrongMint
+        constraint = param.token_mint.key() == token_state.mint.key() @NottyTerminalError::WrongMint
     )]
-    pub token_state: Account<'info, TokenState>,
+    pub token_state: Box<Account<'info, TokenState>>,
 
     /// CHECK: Token_0 vault for the pool, init by cp-swap
     #[account(
@@ -146,6 +157,28 @@ pub struct Launch<'info> {
     )]
     pub observation_state: UncheckedAccount<'info>,
 
+    #[account(
+        init_if_needed,
+        payer = signer,
+        associated_token::mint = wsol_mint,
+        associated_token::authority = token_state)]
+    pub vault_wsol_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    pub wsol_mint: Box<InterfaceAccount<'info, Mint>>,
+
+    #[account(
+        mut,
+        constraint = token_vault.owner == token_state.key(),
+    )]
+    pub token_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        seeds = [b"sol_vault", token_vault.key().as_ref()],
+        bump = token_state.sol_vault_bump,
+    )]
+    pub sol_vault: SystemAccount<'info>,
+
     /// Program to create mint account and mint tokens
     pub token_program: Program<'info, Token>,
     /// Spl token program or token program 2022
@@ -177,6 +210,11 @@ impl<'info> Launch<'info> {
         //     NottyTerminalError::TargetNotReached
         // );
 
+        // Step 1: Wrap SOL
+        self.wrap_sol()?;
+        // Step 2: Transfer tokens to creator accounts for Raydium
+        self.prepare_liquidity(init_amount_0, init_amount_1)?;
+
         let cpi_accounts = cpi::accounts::Initialize {
             creator: self.creator.to_account_info(),
             amm_config: self.amm_config.to_account_info(),
@@ -206,4 +244,130 @@ impl<'info> Launch<'info> {
 
         Ok(())
     }
+
+    pub fn prepare_liquidity(&mut self, init_amount_0: u64, init_amount_1: u64) -> Result<()> {
+        let token_state_seeds: &[&[&[u8]]] = &[&[
+            b"token_state",
+            self.token_state.mint.as_ref(),
+            &[self.token_state.bump],
+        ]];
+
+        // Determine which token is our custom token
+        let is_custom_token_first = self.token_0_mint.key() == self.token_state.mint;
+
+        if is_custom_token_first {
+            // Token 0 is custom token, Token 1 is WSOL
+
+            // Transfer custom tokens from token_vault to creator_token_0
+            token::transfer(
+                CpiContext::new_with_signer(
+                    self.token_program.to_account_info(),
+                    token::Transfer {
+                        from: self.token_vault.to_account_info(),
+                        to: self.creator_token_0.to_account_info(),
+                        authority: self.token_state.to_account_info(),
+                    },
+                    token_state_seeds,
+                ),
+                init_amount_0,
+            )?;
+
+            // Transfer WSOL from vault_wsol_account to creator_token_1
+            token::transfer(
+                CpiContext::new_with_signer(
+                    self.token_program.to_account_info(),
+                    token::Transfer {
+                        from: self.vault_wsol_account.to_account_info(),
+                        to: self.creator_token_1.to_account_info(),
+                        authority: self.token_state.to_account_info(),
+                    },
+                    token_state_seeds,
+                ),
+                init_amount_1,
+            )?;
+        } else {
+            // Token 0 is WSOL, Token 1 is custom token
+
+            // Transfer WSOL from vault_wsol_account to creator_token_0
+            token::transfer(
+                CpiContext::new_with_signer(
+                    self.token_program.to_account_info(),
+                    token::Transfer {
+                        from: self.vault_wsol_account.to_account_info(),
+                        to: self.creator_token_0.to_account_info(),
+                        authority: self.token_state.to_account_info(),
+                    },
+                    token_state_seeds,
+                ),
+                init_amount_0,
+            )?;
+
+            // Transfer custom tokens from token_vault to creator_token_1
+            token::transfer(
+                CpiContext::new_with_signer(
+                    self.token_program.to_account_info(),
+                    token::Transfer {
+                        from: self.token_vault.to_account_info(),
+                        to: self.creator_token_1.to_account_info(),
+                        authority: self.token_state.to_account_info(),
+                    },
+                    token_state_seeds,
+                ),
+                init_amount_1,
+            )?;
+        }
+
+        msg!(
+            "Liquidity prepared: {} token0, {} token1",
+            init_amount_0,
+            init_amount_1
+        );
+        Ok(())
+    }
+
+    pub fn wrap_sol(&mut self) -> Result<()> {
+        // transfer sol to token account
+
+        // let creator_mint = &self.token_state.mint.key();
+        // let signer_seeds: &[&[&[u8]]] = &[&[
+        //     b"token_state",
+        //     creator_mint.as_ref(),
+        //     &[self.token_state.bump],
+        // ]];
+
+        let token_vault = self.token_vault.key();
+
+        let sol_vault_seeds: &[&[&[u8]]] = &[&[
+            b"sol_vault",
+            token_vault.as_ref(), // Use token_vault.key() to match CreateToken!
+            &[self.token_state.sol_vault_bump],
+        ]];
+
+        let cpi_context = CpiContext::new_with_signer(
+            self.system_program.to_account_info(),
+            Transfer {
+                from: self.sol_vault.to_account_info(),
+                to: self.vault_wsol_account.to_account_info(),
+            },
+            sol_vault_seeds,
+        );
+
+        let amount = self.sol_vault.to_account_info().lamports();
+        transfer(cpi_context, amount)?;
+
+        // Sync the native token to reflect the new SOL balance as wSOL
+        let cpi_accounts = token::SyncNative {
+            account: self.vault_wsol_account.to_account_info(),
+        };
+        let cpi_program = self.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        token::sync_native(cpi_ctx)?;
+        Ok(())
+    }
+}
+
+#[derive(AnchorDeserialize, AnchorSerialize)]
+pub struct LaunchParam {
+    pub token_mint: Pubkey,
+    pub time: Option<i64>,
 }

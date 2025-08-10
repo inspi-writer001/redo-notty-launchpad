@@ -42,7 +42,8 @@ pub mod notty_terminal {
             .accounts
             .token_state
             .total_supply
-            .checked_sub(ctx.accounts.token_state.tokens_sold)
+            .checked_mul(1_000_000_000)
+            .and_then(|res| res.checked_sub(ctx.accounts.token_state.tokens_sold))
             .ok_or(NottyTerminalError::InsufficientVaultBalance)?;
 
         let init_amount_1 = ctx.accounts.token_state.sol_raised;
@@ -51,13 +52,19 @@ pub mod notty_terminal {
             None => Clock::get()?.unix_timestamp as u64,
         };
 
+        let new_init_0_amount: u64;
+        let new_init_1_amount: u64;
+
+        if params.token_mint.key() == ctx.accounts.token_0_mint.key() {
+            new_init_0_amount = init_amount_0;
+            new_init_1_amount = init_amount_1;
+        } else {
+            new_init_0_amount = init_amount_1;
+            new_init_1_amount = init_amount_0;
+        }
+
         ctx.accounts
-            .handle_launch(init_amount_0, init_amount_1, open_time)?;
+            .handle_launch(new_init_0_amount, new_init_1_amount, open_time)?;
         Ok(())
     }
-}
-
-#[derive(AnchorDeserialize, AnchorSerialize)]
-pub struct LaunchParam {
-    pub time: Option<i64>,
 }

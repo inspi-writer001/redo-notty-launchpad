@@ -8,6 +8,8 @@ pub enum NottyTerminalError {
     VaultInsufficientSol,
     #[msg("Numerical overflow occurred")]
     NumericalOverflow,
+    #[msg("Multiplication overflow occurred")]
+    MultiplicationOverflow,
     #[msg("Liquidity has already been migrated")]
     AlreadyMigrated,
     #[msg("Vault hasn't reached the migration threshold")]
@@ -28,6 +30,8 @@ pub enum NottyTerminalError {
     NotGraduated,
     #[msg("Only admin can perform this action")]
     UnauthorizedAdmin,
+    #[msg("You Passed wrong Creator for Launch")]
+    WrongCreator,
     #[msg("Fee vault doesn't have enough balance")]
     InsufficientFeeVaultBalance,
     #[msg("User provided wrong vault account")]

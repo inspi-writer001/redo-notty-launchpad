@@ -135,7 +135,8 @@ describe("notty-terminal", () => {
 
       const tx1 = await program.methods
         .purchaseToken({
-          amount: new anchor.BN(10_000_000_000),
+          // amount: new anchor.BN(10_000_000_000),
+          amount: new anchor.BN(10_000_000_0),
           minAmountOut: new anchor.BN(0),
         })
         .signers([user_1_wallet])
@@ -160,7 +161,11 @@ describe("notty-terminal", () => {
       );
     } catch (error) {
       console.log(error);
-      throw error.logs;
+      if (error.logs) {
+        throw Error(error.logs);
+      } else {
+        throw Error(error);
+      }
     }
   });
 
@@ -223,7 +228,11 @@ describe("notty-terminal", () => {
       );
     } catch (error) {
       console.log(error);
-      throw error.logs;
+      if (error.logs) {
+        throw Error(error.logs);
+      } else {
+        throw Error(error);
+      }
     }
   });
 
@@ -384,7 +393,7 @@ describe("notty-terminal", () => {
   // });
 
   it("should fetch token state only", async () => {
-    const tokenMintAddress = "CBNjiFBXSKZMkKDXeEFnHymwHyqiDqYkvaR8z6BTMbHy";
+    const tokenMintAddress = "4XozFuD6kdZDqEG6PoxnASkYd1Hw5WcPwWXycd9hjnew";
 
     let [token_state, _] = anchor.web3.PublicKey.findProgramAddressSync(
       [
@@ -398,6 +407,8 @@ describe("notty-terminal", () => {
       const tokenStateAccount = await program.account.tokenState.fetch(
         token_state
       );
+
+      console.log(tokenStateAccount);
 
       console.log("=== QUICK TOKEN STATE CHECK ===");
       console.log("✅ Token State exists!");
@@ -423,12 +434,39 @@ describe("notty-terminal", () => {
       );
     } catch (error) {
       console.log("❌ Token State not found or error:", error.message);
+      if (error.logs) {
+        throw Error(error.logs);
+      } else {
+        throw Error(error);
+      }
     }
   });
 
   it.only("should launch token to raydium: ", async () => {
     try {
       // Determine token order (token_0 must be < token_1)
+      let [token_state, _] = anchor.web3.PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("token_state"),
+          new anchor.web3.PublicKey(tokenMint.publicKey).toBytes(),
+        ],
+        program.programId
+      );
+
+      let token_vault = await getOrCreateAssociatedTokenAccount(
+        anchor.getProvider().connection,
+        user_1_wallet,
+        tokenMint.publicKey,
+        token_state,
+        true
+      );
+      let wsol_token_vault = await getOrCreateAssociatedTokenAccount(
+        anchor.getProvider().connection,
+        user_1_wallet,
+        WSOL_MINT,
+        token_state,
+        true
+      );
       const token0Mint =
         tokenMint.publicKey.toBuffer().compare(WSOL_MINT.toBuffer()) < 0
           ? tokenMint.publicKey
@@ -473,44 +511,55 @@ describe("notty-terminal", () => {
         RAYDIUM_CPMM_PROGRAM_ID
       );
 
-      const creatorToken0 = await getOrCreateAssociatedTokenAccount(
-        program.provider.connection,
-        admin_wallet,
+      const creatorToken0 = getAssociatedTokenAddressSync(
         token0Mint,
-        user_1_wallet.publicKey
+        user_1_wallet.publicKey,
+        false,
+        TOKEN_PROGRAM_ID
       );
-      const creatorToken1 = await getOrCreateAssociatedTokenAccount(
-        program.provider.connection,
-        admin_wallet,
+      const creatorToken1 = getAssociatedTokenAddressSync(
         token1Mint,
-        user_1_wallet.publicKey
+        user_1_wallet.publicKey,
+        false,
+        TOKEN_PROGRAM_ID
       );
-      const creatorLpToken = await getOrCreateAssociatedTokenAccount(
-        program.provider.connection,
-        admin_wallet,
+      const creatorLpToken = getAssociatedTokenAddressSync(
         lpMint,
-        user_1_wallet.publicKey
+        user_1_wallet.publicKey,
+        false,
+        TOKEN_PROGRAM_ID
       );
 
       const tx = await program.methods
-        .migrateToRaydium({ time: null })
+        .migrateToRaydium({ tokenMint: tokenMint.publicKey, time: null })
         .accounts({
           ammConfig: AMM_CONFIG_25BPS,
-          creator: admin_wallet.publicKey,
-          creatorLpToken: creatorLpToken.address,
-          creatorToken0: creatorToken0.address,
-          creatorToken1: creatorToken1.address,
+          creator: user_1_wallet.publicKey,
+          signer: user_1_wallet.publicKey,
+          creatorLpToken: creatorLpToken,
+          creatorToken0: creatorToken0,
+          creatorToken1: creatorToken1,
           token0Mint,
           token1Mint,
           token0Program: TOKEN_PROGRAM_ID,
           token1Program: TOKEN_PROGRAM_ID,
-          // cpSwapProgram,
+          tokenVault: token_vault.address,
+          wsolMint: WSOL_MINT,
+
+          // @ts-ignore
+          tokenState: token_state,
         })
-        .signers([admin_wallet])
+        .signers([user_1_wallet])
         .rpc();
+      console.log("Your transaction signature: ", tx);
     } catch (error) {
       console.log("❌Launch Failed:", error);
       console.log(error.logs);
+      if (error.logs) {
+        throw Error(error.logs);
+      } else {
+        throw Error(error);
+      }
     }
   });
 });
