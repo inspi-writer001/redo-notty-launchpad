@@ -205,10 +205,10 @@ impl<'info> Launch<'info> {
             NottyTerminalError::AlreadyMigrated
         );
 
-        // require!(
-        //     self.token_state.sol_raised == self.token_state.target_sol,
-        //     NottyTerminalError::TargetNotReached
-        // );
+        require!(
+            self.token_state.sol_raised == self.token_state.target_sol,
+            NottyTerminalError::TargetNotReached
+        );
 
         // Step 1: Wrap SOL
         self.wrap_sol()?;

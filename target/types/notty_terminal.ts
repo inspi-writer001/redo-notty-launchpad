@@ -1796,6 +1796,14 @@ export type NottyTerminal = {
           {
             "name": "currentPrice",
             "type": "u64"
+          },
+          {
+            "name": "buyer",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
           }
         ]
       }
@@ -1852,6 +1860,14 @@ export type NottyTerminal = {
           {
             "name": "currentPrice",
             "type": "u64"
+          },
+          {
+            "name": "seller",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
           }
         ]
       }
@@ -1906,6 +1922,10 @@ export type NottyTerminal = {
           {
             "name": "migrationTimestamp",
             "type": "i64"
+          },
+          {
+            "name": "uri",
+            "type": "string"
           }
         ]
       }

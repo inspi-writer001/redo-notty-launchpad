@@ -1790,6 +1790,14 @@
           {
             "name": "current_price",
             "type": "u64"
+          },
+          {
+            "name": "buyer",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
           }
         ]
       }
@@ -1846,6 +1854,14 @@
           {
             "name": "current_price",
             "type": "u64"
+          },
+          {
+            "name": "seller",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
           }
         ]
       }
@@ -1900,6 +1916,10 @@
           {
             "name": "migration_timestamp",
             "type": "i64"
+          },
+          {
+            "name": "uri",
+            "type": "string"
           }
         ]
       }

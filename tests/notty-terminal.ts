@@ -68,7 +68,7 @@ describe("notty-terminal", () => {
   const program = anchor.workspace.nottyTerminal as Program<NottyTerminal>;
   let tokenMint;
 
-  it("Is initialized!", async () => {
+  it.skip("Is initialized!", async () => {
     // Add your test here.
     const tx = await program.methods
       .initialize({
@@ -83,34 +83,34 @@ describe("notty-terminal", () => {
     console.log("Your transaction signature", tx);
   });
 
-  it.only("should create token and purchase it", async () => {
+  it("should create token and purchase it", async () => {
     try {
-      // tokenMint = anchor.web3.Keypair.generate();
-      tokenMint = {
-        publicKey: new anchor.web3.PublicKey(
-          "4XozFuD6kdZDqEG6PoxnASkYd1Hw5WcPwWXycd9hjnew"
-        ),
-      };
+      tokenMint = anchor.web3.Keypair.generate();
+      // tokenMint = {
+      //   publicKey: new anchor.web3.PublicKey(
+      //     "4XozFuD6kdZDqEG6PoxnASkYd1Hw5WcPwWXycd9hjnew"
+      //   ),
+      // };
 
       console.log(tokenMint.publicKey.toBase58());
       // Add your test here.
-      // const tx = await program.methods
-      //   .createToken({
-      //     name: "Shinobi Jenks",
-      //     tokenSymbol: "SJK",
-      //     tokenUri: "https://avatars.githubusercontent.com/u/94226358?v=4",
-      //     targetSol: new anchor.BN(460_000_000_000), // 460 SOL (matches your metrics)
-      //     startMcap: new anchor.BN(25_000_000_000), // 25 SOL (matches your metrics)
-      //     totalSupply: new anchor.BN(1_000_000_000) // 1B tokens (matches your metrics)
-      //   })
-      //   .signers([user_1_wallet, tokenMint])
-      //   .accounts({
-      //     creator: user_1_wallet.publicKey,
-      //     creatorMint: tokenMint.publicKey,
-      //     tokenProgram: TOKEN_PROGRAM_ID
-      //   })
-      //   .rpc();
-      // console.log("Your transaction signature", tx);
+      const tx = await program.methods
+        .createToken({
+          name: "Shinobi Jenks",
+          tokenSymbol: "SJK",
+          tokenUri: "https://avatars.githubusercontent.com/u/94226358?v=4",
+          targetSol: new anchor.BN(460_000_000_000), // 460 SOL (matches your metrics)
+          startMcap: new anchor.BN(25_000_000_000), // 25 SOL (matches your metrics)
+          totalSupply: new anchor.BN(1_000_000_000), // 1B tokens (matches your metrics)
+        })
+        .signers([user_1_wallet, tokenMint])
+        .accounts({
+          creator: user_1_wallet.publicKey,
+          creatorMint: tokenMint.publicKey,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .rpc();
+      console.log("Your transaction signature", tx);
 
       console.log("=== BEFORE PURCHASE ===");
 
@@ -136,7 +136,7 @@ describe("notty-terminal", () => {
       const tx1 = await program.methods
         .purchaseToken({
           // amount: new anchor.BN(10_000_000_000),
-          amount: new anchor.BN(10_000_000_0),
+          amount: new anchor.BN(10_000_000_000),
           minAmountOut: new anchor.BN(0),
         })
         .signers([user_1_wallet])
@@ -169,14 +169,14 @@ describe("notty-terminal", () => {
     }
   });
 
-  it("should sell tokens", async () => {
+  it.only("should sell tokens", async () => {
     try {
       // let tokenMint = anchor.web3.Keypair.generate();
-      // let tokenMint = {
-      //   publicKey: new anchor.web3.PublicKey(
-      //     "2Y4kJ6DmfQu3ePbfgNtQaFpF1ZYX85FmqvZ156LMpLmb"
-      //   )
-      // };
+      let tokenMint = {
+        publicKey: new anchor.web3.PublicKey(
+          "5yyWspyRd8uVQ7LoQWh2W6AcjtbMr6RgfPLt9o88h1jn"
+        ),
+      };
 
       console.log(tokenMint.publicKey.toBase58());
 
@@ -203,7 +203,7 @@ describe("notty-terminal", () => {
 
       const tx1 = await program.methods
         .sellToken({
-          amount: new anchor.BN(1_000_000_000_000),
+          amount: new anchor.BN(1_000_000_000_0),
           minProceeds: new anchor.BN(0),
         })
         .signers([user_1_wallet])
@@ -442,7 +442,7 @@ describe("notty-terminal", () => {
     }
   });
 
-  it.only("should launch token to raydium: ", async () => {
+  it.skip("should launch token to raydium: ", async () => {
     try {
       // Determine token order (token_0 must be < token_1)
       let [token_state, _] = anchor.web3.PublicKey.findProgramAddressSync(
