@@ -253,6 +253,7 @@ impl<'info> CreateToken<'info> {
             raydium_pool: None,
             migration_timestamp: 0,
             creator: self.creator.key(),
+            uri: args.token_uri,
         });
 
         Ok(())
@@ -282,4 +283,5 @@ pub struct TokenCreated {
     pub creator: Pubkey,
     pub raydium_pool: Option<Pubkey>,
     pub migration_timestamp: i64,
+    pub uri: String,
 }
