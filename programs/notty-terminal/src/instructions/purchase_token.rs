@@ -139,7 +139,9 @@ impl<'info> TokenInteraction<'info> {
             sol_raised: self.token_state.sol_raised,
             tokens_sold: self.token_state.tokens_sold,
             total_supply: self.token_state.total_supply,
-            cost: cost_lamports
+            cost: cost_lamports,
+            buyer: self.user.key(),
+            timestamp: Clock::get()?.unix_timestamp
         });
 
         Ok(())
@@ -245,7 +247,9 @@ impl<'info> TokenInteraction<'info> {
             mint: self.token_state.mint,
             sol_raised: self.token_state.sol_raised,
             tokens_sold: self.token_state.tokens_sold,
-            total_supply: self.token_state.total_supply
+            total_supply: self.token_state.total_supply,
+            seller: self.user.key(),
+            timestamp: Clock::get()?.unix_timestamp
         });
 
         Ok(())
@@ -332,6 +336,8 @@ pub struct PurchasedToken {
     pub sol_raised: u64,
     pub cost: u64,
     pub current_price: u64,
+    pub buyer: Pubkey,
+    pub timestamp: i64,
 }
 
 #[event]
@@ -344,6 +350,8 @@ pub struct SoldToken {
     pub tokens_sold: u64,
     pub sol_raised: u64,
     pub current_price: u64,
+    pub seller: Pubkey,
+    pub timestamp: i64,
 }
 
 // token price = base_price + slope × S (Linear)
