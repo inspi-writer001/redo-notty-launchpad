@@ -502,6 +502,34 @@ export type NottyTerminal = {
           }
         },
         {
+          "name": "platformSolVault",
+          "writable": true
+        },
+        {
+          "name": "globalState",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "poolState",
           "writable": true,
           "pda": {
@@ -1081,6 +1109,10 @@ export type NottyTerminal = {
           }
         },
         {
+          "name": "platformSolVault",
+          "writable": true
+        },
+        {
           "name": "globalState",
           "writable": true,
           "pda": {
@@ -1297,6 +1329,10 @@ export type NottyTerminal = {
               }
             ]
           }
+        },
+        {
+          "name": "platformSolVault",
+          "writable": true
         },
         {
           "name": "globalState",
@@ -1549,6 +1585,26 @@ export type NottyTerminal = {
       "code": 6023,
       "name": "awaitingGraduation",
       "msg": "Trading is paused as token is preparing for migration"
+    },
+    {
+      "code": 6024,
+      "name": "invalidMigrationFee",
+      "msg": "Use a valid fee, max 1 SOL"
+    },
+    {
+      "code": 6025,
+      "name": "invalidTradingFee",
+      "msg": "Invalid trading fee, Max 10%"
+    },
+    {
+      "code": 6026,
+      "name": "invalidStartingMcap",
+      "msg": "Invalid Starting MCAP should be 50 SOL"
+    },
+    {
+      "code": 6027,
+      "name": "invalidTargetMcap",
+      "msg": "Invalid Target MCAP should be 450 SOL"
     }
   ],
   "types": [
@@ -1696,7 +1752,11 @@ export type NottyTerminal = {
             "type": "u64"
           },
           {
-            "name": "slope",
+            "name": "tradingFeeBps",
+            "type": "u16"
+          },
+          {
+            "name": "migrationFeeLamport",
             "type": "u64"
           },
           {
@@ -1705,6 +1765,14 @@ export type NottyTerminal = {
           },
           {
             "name": "totalFeesCollected",
+            "type": "u64"
+          },
+          {
+            "name": "totalTradingVolume",
+            "type": "u64"
+          },
+          {
+            "name": "totalMigrations",
             "type": "u64"
           }
         ]
@@ -1720,7 +1788,11 @@ export type NottyTerminal = {
             "type": "u64"
           },
           {
-            "name": "slope",
+            "name": "tradingFeeBps",
+            "type": "u16"
+          },
+          {
+            "name": "migrationFeeLamport",
             "type": "u64"
           }
         ]
@@ -1754,7 +1826,7 @@ export type NottyTerminal = {
             "type": "u64"
           },
           {
-            "name": "minAmountOut",
+            "name": "maxSolCost",
             "type": "u64"
           }
         ]
@@ -1765,6 +1837,18 @@ export type NottyTerminal = {
       "type": {
         "kind": "struct",
         "fields": [
+          {
+            "name": "baseCost",
+            "type": "u64"
+          },
+          {
+            "name": "tradingFee",
+            "type": "u64"
+          },
+          {
+            "name": "totalCost",
+            "type": "u64"
+          },
           {
             "name": "mint",
             "type": "pubkey"
@@ -1787,10 +1871,6 @@ export type NottyTerminal = {
           },
           {
             "name": "solRaised",
-            "type": "u64"
-          },
-          {
-            "name": "cost",
             "type": "u64"
           },
           {
@@ -1834,7 +1914,15 @@ export type NottyTerminal = {
             "type": "pubkey"
           },
           {
-            "name": "cost",
+            "name": "baseProceeds",
+            "type": "u64"
+          },
+          {
+            "name": "tradingFee",
+            "type": "u64"
+          },
+          {
+            "name": "netProceeds",
             "type": "u64"
           },
           {
@@ -1940,8 +2028,8 @@ export type NottyTerminal = {
             "type": "u8"
           },
           {
-            "name": "solVaultBump",
-            "type": "u8"
+            "name": "migrated",
+            "type": "bool"
           },
           {
             "name": "mint",
@@ -1952,11 +2040,7 @@ export type NottyTerminal = {
             "type": "u64"
           },
           {
-            "name": "migrated",
-            "type": "bool"
-          },
-          {
-            "name": "totalSupply",
+            "name": "solRaised",
             "type": "u64"
           },
           {
@@ -1964,8 +2048,12 @@ export type NottyTerminal = {
             "type": "u64"
           },
           {
-            "name": "solRaised",
+            "name": "totalSupply",
             "type": "u64"
+          },
+          {
+            "name": "solVaultBump",
+            "type": "u8"
           },
           {
             "name": "startMcap",

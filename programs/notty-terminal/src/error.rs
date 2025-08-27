@@ -50,6 +50,14 @@ pub enum NottyTerminalError {
     WrongMint,
     #[msg("Trading is paused as token is preparing for migration")]
     AwaitingGraduation,
+    #[msg("Use a valid fee, max 1 SOL")]
+    InvalidMigrationFee,
+    #[msg("Invalid trading fee, Max 10%")]
+    InvalidTradingFee,
+    #[msg("Invalid Starting MCAP should be 50 SOL")]
+    InvalidStartingMcap,
+    #[msg("Invalid Target MCAP should be 450 SOL")]
+    InvalidTargetMcap,
 }
 
 #[error_code]

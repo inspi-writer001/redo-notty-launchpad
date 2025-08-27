@@ -105,6 +105,16 @@ impl<'info> CreateToken<'info> {
         args: CreateTokenArgs,
         bumps: &CreateTokenBumps,
     ) -> Result<()> {
+        require!(
+            args.start_mcap == 50_000_000_000, // Must be 50 SOL
+            NottyTerminalError::InvalidStartingMcap
+        );
+
+        require!(
+            args.target_sol == 450_000_000_000, // Must be 450 SOL
+            NottyTerminalError::InvalidTargetMcap
+        );
+
         // pay token creation fee
         let cpi_transfer_accounts = Transfer {
             from: self.creator.to_account_info(),

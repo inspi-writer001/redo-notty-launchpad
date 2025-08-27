@@ -13,7 +13,11 @@ use raydium_cpmm_cpi::{
     states::{AmmConfig, OBSERVATION_SEED, POOL_LP_MINT_SEED, POOL_SEED, POOL_VAULT_SEED},
 };
 
-use crate::{error::NottyTerminalError, TokenState};
+pub use crate::{error::NottyTerminalError, integer_sqrt, GlobalState, TokenState};
+pub const INITIAL_MCAP_SOL: u64 = 50;
+pub const MIGRATION_MCAP_SOL: u64 = 450;
+pub const TOTAL_SUPPLY: u64 = 1_000_000_000; // 1B tokens
+pub const MIGRATION_THRESHOLD_PCT: u64 = 86; // Migration at 86% sold
 
 #[derive(Accounts)]
 #[instruction(param: LaunchParam)]
@@ -41,6 +45,18 @@ pub struct Launch<'info> {
         bump,
     )]
     pub authority: UncheckedAccount<'info>,
+
+    #[account(
+        mut,
+        constraint = platform_sol_vault.key() == global_state.vault.key() @NottyTerminalError::WrongVault
+    )]
+    pub platform_sol_vault: SystemAccount<'info>,
+
+    #[account(
+        seeds = [b"global_state"],
+        bump = global_state.bump
+    )]
+    pub global_state: Account<'info, GlobalState>,
 
     /// CHECK: Initialize an account to store the pool state, init by cp-swap
     #[account(
@@ -205,10 +221,31 @@ impl<'info> Launch<'info> {
             NottyTerminalError::AlreadyMigrated
         );
 
+        let current_mcap = self.calculate_current_market_cap()?;
         require!(
-            self.token_state.sol_raised == self.token_state.target_sol,
+            current_mcap >= 450_000_000_000, // 450 SOL in lamports
             NottyTerminalError::TargetNotReached
         );
+
+        // collect Notty Migration Fee
+        let migration_fee = self.global_state.migration_fee_lamport;
+        transfer(
+            CpiContext::new(
+                self.system_program.to_account_info(),
+                Transfer {
+                    from: self.signer.to_account_info(),
+                    to: self.platform_sol_vault.to_account_info(),
+                },
+            ),
+            migration_fee,
+        )?;
+
+        // Update global metrics
+        self.global_state.total_migrations = self
+            .global_state
+            .total_migrations
+            .checked_add(1)
+            .ok_or(NottyTerminalError::NumericalOverflow)?;
 
         // Step 1: Wrap SOL
         self.wrap_sol()?;
@@ -363,6 +400,25 @@ impl<'info> Launch<'info> {
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
         token::sync_native(cpi_ctx)?;
         Ok(())
+    }
+
+    fn calculate_current_market_cap(&self) -> Result<u64> {
+        // Copy the logic from TokenInteraction or make it a helper function
+        const BASE_PRICE: u64 = 50;
+        const MAX_PRICE: u64 = 450;
+        const PRICE_RANGE: u64 = MAX_PRICE - BASE_PRICE;
+
+        let migration_tokens = TOTAL_SUPPLY * MIGRATION_THRESHOLD_PCT / 100;
+        let progress = (self.token_state.tokens_sold * 1000) / migration_tokens;
+        let capped_progress = std::cmp::min(progress, 1000);
+        let sqrt_progress = integer_sqrt(capped_progress)?;
+
+        let current_price_lamports = BASE_PRICE + (PRICE_RANGE * sqrt_progress / 31);
+        let cap_lamports = current_price_lamports
+            .checked_mul(self.token_state.total_supply)
+            .ok_or(NottyTerminalError::NumericalOverflow)?;
+
+        Ok(cap_lamports)
     }
 }
 
