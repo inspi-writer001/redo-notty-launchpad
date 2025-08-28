@@ -9,7 +9,7 @@ pub use constants::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("3Jy5qUaaAQMKVUehh4cLncAAYVgf1XELnt1RhNJGe8ZD");
+declare_id!("ntt7FdxskUiwbG52JpdCeubLvtFcZe3SJm6cT18PouG");
 
 #[program]
 pub mod notty_terminal {

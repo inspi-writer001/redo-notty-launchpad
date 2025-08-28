@@ -65,7 +65,9 @@ pub struct TokenInteraction<'info> {
 
     #[account(
         mut,
-        constraint = platform_sol_vault.key() == global_state.vault.key() @NottyTerminalError::WrongVault
+        constraint = platform_sol_vault.key() == global_state.vault.key() @NottyTerminalError::WrongVault,
+        seeds = [b"vault"],
+        bump = global_state.vault_bump
     )]
     pub platform_sol_vault: SystemAccount<'info>,
 
@@ -344,76 +346,72 @@ impl<'info> TokenInteraction<'info> {
     }
 
     pub fn calculate_current_market_cap(&self) -> Result<u64> {
-        // Get price per base unit (not per token)
-        let current_price_per_base_unit = self.get_current_token_price(1)?;
+        const BASE_PRICE_PER_MILLION: u64 = 50;
+        const MAX_PRICE_PER_MILLION: u64 = 450;
+        const PRICE_RANGE: u64 = MAX_PRICE_PER_MILLION - BASE_PRICE_PER_MILLION;
 
-        // Total supply is already in base units (with 9 decimals)
-        // So multiply directly
-        let cap_lamports = current_price_per_base_unit
-            .checked_mul(self.token_state.total_supply)
-            .ok_or(NottyTerminalError::NumericalOverflow)?;
+        let total_base_units = TOTAL_SUPPLY * 1_000_000_000;
+        let migration_base_units = (total_base_units / 100) * MIGRATION_THRESHOLD_PCT;
 
-        Ok(cap_lamports)
+        let progress = (self.token_state.tokens_sold * 1000) / migration_base_units;
+        let capped_progress = min(progress, 1000);
+        let sqrt_progress = integer_sqrt(capped_progress)?;
+
+        let price_per_million = BASE_PRICE_PER_MILLION + (PRICE_RANGE * sqrt_progress / 31);
+        let total_millions = total_base_units / 1_000_000;
+        let market_cap_lamports = price_per_million * total_millions;
+
+        Ok(market_cap_lamports)
     }
 
-    pub fn get_current_sell_price(&self, amount: u64) -> Result<u64> {
-        // Use square root pricing for consistency
-        const BASE_PRICE: u64 = 50;
-        const MAX_PRICE: u64 = 450;
-        const PRICE_RANGE: u64 = MAX_PRICE - BASE_PRICE;
+    pub fn get_current_sell_price(&self, amount_base_units: u64) -> Result<u64> {
+        const BASE_PRICE_PER_MILLION: u64 = 50;
+        const MAX_PRICE_PER_MILLION: u64 = 450;
+        const PRICE_RANGE: u64 = MAX_PRICE_PER_MILLION - BASE_PRICE_PER_MILLION;
 
-        // Calculate price AFTER the sell (tokens_sold will decrease)
         let new_tokens_sold = self
             .token_state
             .tokens_sold
-            .checked_sub(amount)
+            .checked_sub(amount_base_units)
             .ok_or(NottyTerminalError::InsufficientTokensSold)?;
 
-        // Get price at new position
-        let migration_tokens = TOTAL_SUPPLY * MIGRATION_THRESHOLD_PCT / 100;
-        let progress = (new_tokens_sold * 1000) / migration_tokens;
-        let capped_progress = std::cmp::min(progress, 1000);
-        let sqrt_progress = integer_sqrt(capped_progress)?;
+        let total_base_units = TOTAL_SUPPLY * 1_000_000_000;
+        // Fix overflow here too
+        let migration_base_units = (total_base_units / 100) * MIGRATION_THRESHOLD_PCT;
 
-        let price_at_new_position = BASE_PRICE + (PRICE_RANGE * sqrt_progress / 31);
+        let new_progress = (new_tokens_sold * 1000) / migration_base_units;
+        let new_sqrt = integer_sqrt(min(new_progress, 1000))?;
+        let new_price = BASE_PRICE_PER_MILLION + (PRICE_RANGE * new_sqrt / 31);
 
-        // Average between current and new position
-        let current_progress = (self.token_state.tokens_sold * 1000) / migration_tokens;
-        let current_sqrt = integer_sqrt(std::cmp::min(current_progress, 1000))?;
-        let current_price = BASE_PRICE + (PRICE_RANGE * current_sqrt / 31);
+        let current_progress = (self.token_state.tokens_sold * 1000) / migration_base_units;
+        let current_sqrt = integer_sqrt(min(current_progress, 1000))?;
+        let current_price = BASE_PRICE_PER_MILLION + (PRICE_RANGE * current_sqrt / 31);
 
-        let avg_price_per_token = (current_price + price_at_new_position) / 2;
-
-        // Calculate proceeds
-        let amount_in_tokens = amount / 1_000_000_000;
-        let sell_proceeds = avg_price_per_token
-            .checked_mul(amount_in_tokens)
-            .ok_or(NottyTerminalError::NumericalOverflow)?;
+        let avg_price_per_million = (current_price + new_price) / 2;
+        let sell_proceeds = (amount_base_units / 1_000_000) * avg_price_per_million;
 
         Ok(sell_proceeds)
     }
 
-    pub fn get_current_token_price(&self, amount: u64) -> Result<u64> {
-        // Constants in lamports
-        const BASE_PRICE: u64 = 50; // 50 lamports per token at start
-        const MAX_PRICE: u64 = 450; // 450 lamports per token at migration
-        const PRICE_RANGE: u64 = MAX_PRICE - BASE_PRICE; // 400 lamports range
+    pub fn get_current_token_price(&self, amount_base_units: u64) -> Result<u64> {
+        const BASE_PRICE_PER_MILLION: u64 = 50;
+        const MAX_PRICE_PER_MILLION: u64 = 450;
+        const PRICE_RANGE: u64 = MAX_PRICE_PER_MILLION - BASE_PRICE_PER_MILLION;
 
-        // Calculate progress (0-1000 scale for precision)
-        let migration_tokens = TOTAL_SUPPLY * MIGRATION_THRESHOLD_PCT / 100;
-        let progress = (self.token_state.tokens_sold * 1000) / migration_tokens;
+        // Avoid overflow by dividing first
+        let total_base_units = TOTAL_SUPPLY * 1_000_000_000;
+        // Instead of: total_base_units * 86 / 100
+        // Do: (total_base_units / 100) * 86
+        let migration_base_units = (total_base_units / 100) * MIGRATION_THRESHOLD_PCT;
+
+        let progress = (self.token_state.tokens_sold * 1000) / migration_base_units;
         let capped_progress = min(progress, 1000);
-
-        // Square root calculation (integer math)
         let sqrt_progress = integer_sqrt(capped_progress)?;
 
-        // Current price = base + (range * sqrt(progress))
-        // sqrt(1000) ≈ 31.6, so we use 31 as divisor
-        let current_price_lamports = BASE_PRICE + (PRICE_RANGE * sqrt_progress / 31);
+        let price_per_million = BASE_PRICE_PER_MILLION + (PRICE_RANGE * sqrt_progress / 31);
+        let total_cost = (amount_base_units / 1_000_000) * price_per_million;
 
-        // Calculate total cost for amount
-        let amount_in_tokens = amount / 1_000_000_000;
-        Ok(current_price_lamports * amount_in_tokens)
+        Ok(total_cost)
     }
 }
 

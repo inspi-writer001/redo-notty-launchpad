@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/notty_terminal.json`.
  */
 export type NottyTerminal = {
-  "address": "3Jy5qUaaAQMKVUehh4cLncAAYVgf1XELnt1RhNJGe8ZD",
+  "address": "ntt7FdxskUiwbG52JpdCeubLvtFcZe3SJm6cT18PouG",
   "metadata": {
     "name": "nottyTerminal",
     "version": "0.1.0",
@@ -1110,7 +1110,21 @@ export type NottyTerminal = {
         },
         {
           "name": "platformSolVault",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "globalState",
@@ -1332,7 +1346,21 @@ export type NottyTerminal = {
         },
         {
           "name": "platformSolVault",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "globalState",

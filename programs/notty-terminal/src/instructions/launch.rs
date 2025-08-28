@@ -19,6 +19,8 @@ pub const MIGRATION_MCAP_SOL: u64 = 450;
 pub const TOTAL_SUPPLY: u64 = 1_000_000_000; // 1B tokens
 pub const MIGRATION_THRESHOLD_PCT: u64 = 86; // Migration at 86% sold
 
+use std::cmp::min;
+
 #[derive(Accounts)]
 #[instruction(param: LaunchParam)]
 pub struct Launch<'info> {
@@ -402,23 +404,23 @@ impl<'info> Launch<'info> {
         Ok(())
     }
 
-    fn calculate_current_market_cap(&self) -> Result<u64> {
-        // Copy the logic from TokenInteraction or make it a helper function
-        const BASE_PRICE: u64 = 50;
-        const MAX_PRICE: u64 = 450;
-        const PRICE_RANGE: u64 = MAX_PRICE - BASE_PRICE;
+    pub fn calculate_current_market_cap(&self) -> Result<u64> {
+        const BASE_PRICE_PER_MILLION: u64 = 50;
+        const MAX_PRICE_PER_MILLION: u64 = 450;
+        const PRICE_RANGE: u64 = MAX_PRICE_PER_MILLION - BASE_PRICE_PER_MILLION;
 
-        let migration_tokens = TOTAL_SUPPLY * MIGRATION_THRESHOLD_PCT / 100;
-        let progress = (self.token_state.tokens_sold * 1000) / migration_tokens;
-        let capped_progress = std::cmp::min(progress, 1000);
+        let total_base_units = TOTAL_SUPPLY * 1_000_000_000;
+        let migration_base_units = (total_base_units / 100) * MIGRATION_THRESHOLD_PCT;
+
+        let progress = (self.token_state.tokens_sold * 1000) / migration_base_units;
+        let capped_progress = min(progress, 1000);
         let sqrt_progress = integer_sqrt(capped_progress)?;
 
-        let current_price_lamports = BASE_PRICE + (PRICE_RANGE * sqrt_progress / 31);
-        let cap_lamports = current_price_lamports
-            .checked_mul(self.token_state.total_supply)
-            .ok_or(NottyTerminalError::NumericalOverflow)?;
+        let price_per_million = BASE_PRICE_PER_MILLION + (PRICE_RANGE * sqrt_progress / 31);
+        let total_millions = total_base_units / 1_000_000;
+        let market_cap_lamports = price_per_million * total_millions;
 
-        Ok(cap_lamports)
+        Ok(market_cap_lamports)
     }
 }
 

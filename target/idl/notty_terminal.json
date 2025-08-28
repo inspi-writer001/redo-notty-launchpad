@@ -1,5 +1,5 @@
 {
-  "address": "3Jy5qUaaAQMKVUehh4cLncAAYVgf1XELnt1RhNJGe8ZD",
+  "address": "ntt7FdxskUiwbG52JpdCeubLvtFcZe3SJm6cT18PouG",
   "metadata": {
     "name": "notty_terminal",
     "version": "0.1.0",
@@ -1104,7 +1104,21 @@
         },
         {
           "name": "platform_sol_vault",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "global_state",
@@ -1326,7 +1340,21 @@
         },
         {
           "name": "platform_sol_vault",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "global_state",

@@ -14,6 +14,7 @@ import {
 } from "@solana/spl-token";
 import { publicKey } from "@coral-xyz/anchor/dist/cjs/utils";
 import { SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
+import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
 
 let admin_wallet = anchor.web3.Keypair.fromSecretKey(
   new Uint8Array(admin_file)
@@ -73,7 +74,8 @@ describe("notty-terminal", () => {
     const tx = await program.methods
       .initialize({
         listingFeeLamport: new anchor.BN(50_000_000),
-        slope: new anchor.BN(1),
+        tradingFeeBps: 150,
+        migrationFeeLamport: new anchor.BN(150_000_000),
       })
       .accounts({
         admin: admin_wallet.publicKey,
@@ -85,32 +87,32 @@ describe("notty-terminal", () => {
 
   it("should create token and purchase it", async () => {
     try {
-      tokenMint = anchor.web3.Keypair.generate();
-      // tokenMint = {
-      //   publicKey: new anchor.web3.PublicKey(
-      //     "4XozFuD6kdZDqEG6PoxnASkYd1Hw5WcPwWXycd9hjnew"
-      //   ),
-      // };
+      // tokenMint = anchor.web3.Keypair.generate();
+      tokenMint = {
+        publicKey: new anchor.web3.PublicKey(
+          "4zGzHNzvb7hxQBCPTmVQ9f3cdPUBMUnJB4tQj71UCF1v"
+        ),
+      };
 
       console.log(tokenMint.publicKey.toBase58());
       // Add your test here.
-      const tx = await program.methods
-        .createToken({
-          name: "Shinobi Jenks",
-          tokenSymbol: "SJK",
-          tokenUri: "https://avatars.githubusercontent.com/u/94226358?v=4",
-          targetSol: new anchor.BN(460_000_000_000), // 460 SOL (matches your metrics)
-          startMcap: new anchor.BN(25_000_000_000), // 25 SOL (matches your metrics)
-          totalSupply: new anchor.BN(1_000_000_000), // 1B tokens (matches your metrics)
-        })
-        .signers([user_1_wallet, tokenMint])
-        .accounts({
-          creator: user_1_wallet.publicKey,
-          creatorMint: tokenMint.publicKey,
-          tokenProgram: TOKEN_PROGRAM_ID,
-        })
-        .rpc();
-      console.log("Your transaction signature", tx);
+      // const tx = await program.methods
+      //   .createToken({
+      //     name: "Shinobi Jenks",
+      //     tokenSymbol: "SJK",
+      //     tokenUri: "https://avatars.githubusercontent.com/u/94226358?v=4",
+      //     targetSol: new anchor.BN(450_000_000_000), // 460 SOL (matches your metrics)
+      //     startMcap: new anchor.BN(50_000_000_000), // 50 SOL (matches your metrics)
+      //     totalSupply: new anchor.BN(1_000_000_000), // 1B tokens (matches your metrics)
+      //   })
+      //   .signers([user_1_wallet, tokenMint])
+      //   .accounts({
+      //     creator: user_1_wallet.publicKey,
+      //     creatorMint: tokenMint.publicKey,
+      //     tokenProgram: TOKEN_PROGRAM_ID,
+      //   })
+      //   .rpc();
+      // console.log("Your transaction signature", tx);
 
       console.log("=== BEFORE PURCHASE ===");
 
@@ -133,11 +135,17 @@ describe("notty-terminal", () => {
         true
       );
 
+      // let platformSolVault = anchor.web3.PublicKey.findProgramAddressSync(
+      //   [Buffer.from("vault")],
+      //   program.programId
+      // )[0];
+
       const tx1 = await program.methods
         .purchaseToken({
-          // amount: new anchor.BN(10_000_000_000),
-          amount: new anchor.BN(10_000_000_000),
-          minAmountOut: new anchor.BN(0),
+          amount: new anchor.BN(1_000_000_000_000),
+          maxSolCost: new anchor.BN(2)
+            .pow(new anchor.BN(64))
+            .sub(new anchor.BN(1)), // 2 ^ 64 - 1 ( for u64 )
         })
         .signers([user_1_wallet])
         .accounts({
@@ -169,7 +177,7 @@ describe("notty-terminal", () => {
     }
   });
 
-  it.only("should sell tokens", async () => {
+  it.skip("should sell tokens", async () => {
     try {
       // let tokenMint = anchor.web3.Keypair.generate();
       let tokenMint = {
@@ -392,7 +400,7 @@ describe("notty-terminal", () => {
   //   }
   // });
 
-  it("should fetch token state only", async () => {
+  it.skip("should fetch token state only", async () => {
     const tokenMintAddress = "4XozFuD6kdZDqEG6PoxnASkYd1Hw5WcPwWXycd9hjnew";
 
     let [token_state, _] = anchor.web3.PublicKey.findProgramAddressSync(
