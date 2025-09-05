@@ -393,22 +393,45 @@ impl<'info> TokenInteraction<'info> {
         Ok(sell_proceeds)
     }
 
+    // pub fn get_current_token_price(&self, amount_base_units: u64) -> Result<u64> {
+    //     const BASE_PRICE_PER_MILLION: u64 = 50;
+    //     const MAX_PRICE_PER_MILLION: u64 = 450;
+    //     const PRICE_RANGE: u64 = MAX_PRICE_PER_MILLION - BASE_PRICE_PER_MILLION;
+
+    //     // Avoid overflow by dividing first
+    //     let total_base_units = TOTAL_SUPPLY * 1_000_000_000;
+    //     // Instead of: total_base_units * 86 / 100
+    //     // Do: (total_base_units / 100) * 86
+    //     let migration_base_units = (total_base_units / 100) * MIGRATION_THRESHOLD_PCT;
+
+    //     let progress = (self.token_state.tokens_sold * 1000) / migration_base_units;
+    //     let capped_progress = min(progress, 1000);
+    //     let sqrt_progress = integer_sqrt(capped_progress)?;
+
+    //     let price_per_million = BASE_PRICE_PER_MILLION + (PRICE_RANGE * sqrt_progress / 31);
+    //     let total_cost = (amount_base_units / 1_000_000) * price_per_million;
+
+    //     Ok(total_cost)
+    // }
     pub fn get_current_token_price(&self, amount_base_units: u64) -> Result<u64> {
         const BASE_PRICE_PER_MILLION: u64 = 50;
         const MAX_PRICE_PER_MILLION: u64 = 450;
         const PRICE_RANGE: u64 = MAX_PRICE_PER_MILLION - BASE_PRICE_PER_MILLION;
 
-        // Avoid overflow by dividing first
+        // Scale to make progress more sensitive
+        // Using basis points (10000 = 100%) for better precision
         let total_base_units = TOTAL_SUPPLY * 1_000_000_000;
-        // Instead of: total_base_units * 86 / 100
-        // Do: (total_base_units / 100) * 86
         let migration_base_units = (total_base_units / 100) * MIGRATION_THRESHOLD_PCT;
 
-        let progress = (self.token_state.tokens_sold * 1000) / migration_base_units;
-        let capped_progress = min(progress, 1000);
-        let sqrt_progress = integer_sqrt(capped_progress)?;
+        // Calculate progress in basis points (10000 = 100%)
+        let progress_bps = (self.token_state.tokens_sold * 10000) / migration_base_units;
 
-        let price_per_million = BASE_PRICE_PER_MILLION + (PRICE_RANGE * sqrt_progress / 31);
+        // Square root of basis points (0-10000 becomes 0-100)
+        let sqrt_progress = integer_sqrt(min(progress_bps, 10000))?;
+
+        // Price increases from base to max (sqrt of 10000 = 100)
+        let price_per_million = BASE_PRICE_PER_MILLION + (PRICE_RANGE * sqrt_progress / 100);
+
         let total_cost = (amount_base_units / 1_000_000) * price_per_million;
 
         Ok(total_cost)

@@ -85,12 +85,12 @@ describe("notty-terminal", () => {
     console.log("Your transaction signature", tx);
   });
 
-  it("should create token and purchase it", async () => {
+  it.only("should create token and purchase it", async () => {
     try {
       // tokenMint = anchor.web3.Keypair.generate();
       tokenMint = {
         publicKey: new anchor.web3.PublicKey(
-          "4zGzHNzvb7hxQBCPTmVQ9f3cdPUBMUnJB4tQj71UCF1v"
+          "976uSFjh3w2ENsCFHj2v1iE8kNzG3DTGAiTs9jh3kQ5k"
         ),
       };
 
@@ -101,7 +101,7 @@ describe("notty-terminal", () => {
       //     name: "Shinobi Jenks",
       //     tokenSymbol: "SJK",
       //     tokenUri: "https://avatars.githubusercontent.com/u/94226358?v=4",
-      //     targetSol: new anchor.BN(450_000_000_000), // 460 SOL (matches your metrics)
+      //     targetSol: new anchor.BN(450_000_000_000), // 450 SOL (matches your metrics)
       //     startMcap: new anchor.BN(50_000_000_000), // 50 SOL (matches your metrics)
       //     totalSupply: new anchor.BN(1_000_000_000), // 1B tokens (matches your metrics)
       //   })
@@ -122,6 +122,8 @@ describe("notty-terminal", () => {
       );
 
       const beforeState = await program.account.tokenState.fetch(token_state);
+
+      console.log(beforeState);
       console.log(
         "SOL Raised before:",
         Number(beforeState.solRaised) / 1_000_000_000
@@ -140,9 +142,25 @@ describe("notty-terminal", () => {
       //   program.programId
       // )[0];
 
-      const tx1 = await program.methods
+      // const tx1 = await program.methods
+      //   .purchaseToken({
+      //     amount: new anchor.BN(30_000_000_000_000),
+      //     maxSolCost: new anchor.BN(2)
+      //       .pow(new anchor.BN(64))
+      //       .sub(new anchor.BN(1)), // 2 ^ 64 - 1 ( for u64 )
+      //   })
+      //   .signers([user_1_wallet])
+      //   .accounts({
+      //     user: user_1_wallet.publicKey,
+      //     creatorMint: tokenMint.publicKey,
+      //     tokenProgram: TOKEN_PROGRAM_ID,
+      //     tokenVault: token_vault.address,
+      //   })
+      //   .rpc();
+
+      const tx2 = await program.methods
         .purchaseToken({
-          amount: new anchor.BN(1_000_000_000_000),
+          amount: new anchor.BN(10_000_000_000_000),
           maxSolCost: new anchor.BN(2)
             .pow(new anchor.BN(64))
             .sub(new anchor.BN(1)), // 2 ^ 64 - 1 ( for u64 )
@@ -156,9 +174,12 @@ describe("notty-terminal", () => {
         })
         .rpc();
 
-      console.log("Your transaction signature 2", tx1);
+      // console.log("Your transaction signature 2", tx1);
+      console.log("Your transaction signature 3", tx2);
       console.log("=== AFTER PURCHASE ===");
       const afterState = await program.account.tokenState.fetch(token_state);
+
+      console.log(afterState);
       console.log(
         "SOL Raised after:",
         Number(afterState.solRaised) / 1_000_000_000

@@ -1496,143 +1496,43 @@ export type NottyTerminal = {
   "errors": [
     {
       "code": 6000,
-      "name": "insufficientFunds",
-      "msg": "Not enough SOL to buy tokens"
+      "name": "supplyOverflow",
+      "msg": "Overflow in supply calculation: total_supply - tokens_sold"
     },
     {
       "code": 6001,
-      "name": "vaultInsufficientSol",
-      "msg": "Vault doesn't have enough SOL to refund"
+      "name": "slopeSupplyOverflow",
+      "msg": "Overflow in slope calculation: slope * current_supply"
     },
     {
       "code": 6002,
-      "name": "numericalOverflow",
-      "msg": "Numerical overflow occurred"
+      "name": "pricePerTokenOverflow",
+      "msg": "Overflow in price_per_token calculation: base_price + (slope * current_supply)"
     },
     {
       "code": 6003,
-      "name": "multiplicationOverflow",
-      "msg": "Multiplication overflow occurred"
+      "name": "linearCostOverflow",
+      "msg": "Overflow in linear_cost calculation: n * price_per_token"
     },
     {
       "code": 6004,
-      "name": "alreadyMigrated",
-      "msg": "Liquidity has already been migrated"
+      "name": "nSquaredOverflow",
+      "msg": "Overflow in n_squared calculation: n * n"
     },
     {
       "code": 6005,
-      "name": "targetNotReached",
-      "msg": "Vault hasn't reached the migration threshold"
+      "name": "quadraticSlopeOverflow",
+      "msg": "Overflow in quadratic calculation: slope * n²"
     },
     {
       "code": 6006,
-      "name": "exceedsSupply",
-      "msg": "Token amount exceeds available supply"
+      "name": "quadraticDivisionOverflow",
+      "msg": "Overflow in quadratic division: (slope * n²) / 2"
     },
     {
       "code": 6007,
-      "name": "slippageExceeded",
-      "msg": "Slippage tolerance exceeded"
-    },
-    {
-      "code": 6008,
-      "name": "invalidAmount",
-      "msg": "Invalid amount specified"
-    },
-    {
-      "code": 6009,
-      "name": "soldOut",
-      "msg": "All tokens have been sold"
-    },
-    {
-      "code": 6010,
-      "name": "insufficientTokensSold",
-      "msg": "Insufficient tokens sold to support this sale"
-    },
-    {
-      "code": 6011,
-      "name": "alreadyGraduated",
-      "msg": "Bonding curve has already graduated"
-    },
-    {
-      "code": 6012,
-      "name": "notGraduated",
-      "msg": "Bonding curve has not graduated yet"
-    },
-    {
-      "code": 6013,
-      "name": "unauthorizedAdmin",
-      "msg": "Only admin can perform this action"
-    },
-    {
-      "code": 6014,
-      "name": "wrongCreator",
-      "msg": "You Passed wrong Creator for Launch"
-    },
-    {
-      "code": 6015,
-      "name": "insufficientFeeVaultBalance",
-      "msg": "Fee vault doesn't have enough balance"
-    },
-    {
-      "code": 6016,
-      "name": "wrongVault",
-      "msg": "User provided wrong vault account"
-    },
-    {
-      "code": 6017,
-      "name": "insufficientTokenBalance",
-      "msg": "Insufficient token balance to sell"
-    },
-    {
-      "code": 6018,
-      "name": "insufficientVaultBalance",
-      "msg": "Vault has insufficient SOL balance"
-    },
-    {
-      "code": 6019,
-      "name": "invalidTokenOrdering",
-      "msg": "Invalid token ordering - token must be < WSOL"
-    },
-    {
-      "code": 6020,
-      "name": "invalidAmmConfig",
-      "msg": "Invalid AMM config"
-    },
-    {
-      "code": 6021,
-      "name": "invalidFeeReceiver",
-      "msg": "Invalid fee receiver"
-    },
-    {
-      "code": 6022,
-      "name": "wrongMint",
-      "msg": "User provided wrong mint account for token_0"
-    },
-    {
-      "code": 6023,
-      "name": "awaitingGraduation",
-      "msg": "Trading is paused as token is preparing for migration"
-    },
-    {
-      "code": 6024,
-      "name": "invalidMigrationFee",
-      "msg": "Use a valid fee, max 1 SOL"
-    },
-    {
-      "code": 6025,
-      "name": "invalidTradingFee",
-      "msg": "Invalid trading fee, Max 10%"
-    },
-    {
-      "code": 6026,
-      "name": "invalidStartingMcap",
-      "msg": "Invalid Starting MCAP should be 50 SOL"
-    },
-    {
-      "code": 6027,
-      "name": "invalidTargetMcap",
-      "msg": "Invalid Target MCAP should be 450 SOL"
+      "name": "finalSumOverflow",
+      "msg": "Overflow in final sum: linear_cost + quadratic_adjustment"
     }
   ],
   "types": [
